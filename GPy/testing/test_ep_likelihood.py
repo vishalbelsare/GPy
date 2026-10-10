@@ -13,7 +13,7 @@ def rmse(Y, Ystar):
 # this file will contain some high level tests, this is not unit testing, but will give us a higher level estimate
 # if things are going well under the hood.
 class TestObservationModels:
-    def setup(self):
+    def setup_method(self):
         np.random.seed(fixed_seed)
         self.N = 100
         self.D = 2
@@ -49,16 +49,14 @@ class TestObservationModels:
         self.kernel1 = None
 
     def test_epccassification(self):
-        self.setup()
+        self.setup_method()
 
         bernoulli = GPy.likelihoods.Bernoulli()
         laplace_inf = GPy.inference.latent_function_inference.Laplace()
 
         ep_inf_alt = GPy.inference.latent_function_inference.EP(ep_mode="alternated")
         ep_inf_nested = GPy.inference.latent_function_inference.EP(ep_mode="nested")
-        ep_inf_fractional = GPy.inference.latent_function_inference.EP(
-            ep_mode="nested", eta=0.9
-        )
+        ep_inf_fractional = GPy.inference.latent_function_inference.EP(ep_mode="nested", eta=0.9)
 
         m1 = GPy.core.GP(
             self.X,
@@ -125,23 +123,17 @@ class TestObservationModels:
         GPy.util.classification.conf_matrix(probs_mean_ep_alt, self.binary_Y)
         GPy.util.classification.conf_matrix(probs_mean_ep_nested, self.binary_Y)
 
-    @pytest.mark.skip(
-        "Fails as a consequence of fixing the DSYR function. Needs to be reviewed!"
-    )
+    @pytest.mark.skip("Fails as a consequence of fixing the DSYR function. Needs to be reviewed!")
     def test_ep_with_studentt(self):
-        self.setup()
+        self.setup_method()
         self.tear_down()
 
-        studentT = GPy.likelihoods.StudentT(
-            deg_free=self.deg_free, sigma2=self.init_var
-        )
+        studentT = GPy.likelihoods.StudentT(deg_free=self.deg_free, sigma2=self.init_var)
         laplace_inf = GPy.inference.latent_function_inference.Laplace()
 
         ep_inf_alt = GPy.inference.latent_function_inference.EP(ep_mode="alternated")
-        ep_inf_nested = GPy.inference.latent_function_inference.EP(ep_mode="nested")
-        ep_inf_frac = GPy.inference.latent_function_inference.EP(
-            ep_mode="nested", eta=0.7
-        )
+        GPy.inference.latent_function_inference.EP(ep_mode="nested")
+        GPy.inference.latent_function_inference.EP(ep_mode="nested", eta=0.7)
 
         m1 = GPy.core.GP(
             self.X.copy(),

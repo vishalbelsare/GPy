@@ -3,13 +3,14 @@ Created on 4 Sep 2015
 
 @author: maxz
 """
+
 import numpy as np
 import GPy
 from GPy.core.parameterization.variational import NormalPosterior
 
 
 class TestGP:
-    def setup(self):
+    def setup_method(self):
         np.random.seed(12345)
         self.N = 20
         self.N_new = 50
@@ -19,7 +20,7 @@ class TestGP:
         self.X_new = np.random.uniform(-3.0, 3.0, (self.N_new, 1))
 
     def test_setxy_bgplvm(self):
-        self.setup()
+        self.setup_method()
 
         k = GPy.kern.RBF(1)
         m = GPy.models.BayesianGPLVM(self.Y, 1, kernel=k)
@@ -38,7 +39,7 @@ class TestGP:
         np.testing.assert_allclose(var, var2)
 
     def test_setxy_gplvm(self):
-        self.setup()
+        self.setup_method()
 
         k = GPy.kern.RBF(1)
         m = GPy.models.GPLVM(self.Y, 1, kernel=k)
@@ -57,7 +58,7 @@ class TestGP:
         np.testing.assert_allclose(var, var2)
 
     def test_setxy_gp(self):
-        self.setup()
+        self.setup_method()
 
         k = GPy.kern.RBF(1)
         m = GPy.models.GPRegression(self.X, self.Y, kernel=k)
@@ -78,7 +79,7 @@ class TestGP:
         from GPy.core.parameterization.param import Param
         from GPy.core.mapping import Mapping
 
-        self.setup()
+        self.setup_method()
 
         class Parabola(Mapping):
             def __init__(self, variance, degree=2, name="parabola"):
@@ -101,7 +102,7 @@ class TestGP:
 
             def update_gradients(self, dL_dF, X):
                 for i in range(self.degree + 1):
-                    self.variance.gradient[i] = (dL_dF * X ** (i)).sum(0)
+                    self.variance.gradient[i] = (dL_dF * X ** (i)).sum()
 
         X = np.linspace(-2, 2, 100)[:, None]
         k = GPy.kern.RBF(1)
@@ -110,9 +111,7 @@ class TestGP:
         p.randomize()
         Y = (
             p.f(X)
-            + np.random.multivariate_normal(
-                np.zeros(X.shape[0]), k.K(X) + np.eye(X.shape[0]) * 1e-8
-            )[:, None]
+            + np.random.multivariate_normal(np.zeros(X.shape[0]), k.K(X) + np.eye(X.shape[0]) * 1e-8)[:, None]
             + np.random.normal(0, 0.1, (X.shape[0], 1))
         )
         m = GPy.models.GPRegression(X, Y, mean_function=p)

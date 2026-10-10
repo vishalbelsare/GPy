@@ -4,6 +4,7 @@ The Gaussian processes framework in Python.
 
 * GPy [homepage](http://sheffieldml.github.io/GPy/)
 * Tutorial [notebooks](http://nbviewer.ipython.org/github/SheffieldML/notebook/blob/master/GPy/index.ipynb)
+* Multi-output / coregionalized regression notes: [`doc/source/tuto_coregionalized.rst`](doc/source/tuto_coregionalized.rst) (also on [Read the Docs](https://gpy.readthedocs.io/en/devel/tuto_coregionalized.html) after the next docs build)
 * User [mailing-list](https://lists.shef.ac.uk/sympa/subscribe/gpy-users)
 * Developer [documentation](http://gpy.readthedocs.io/) [documentation (devel branch)](https://gpy.readthedocs.io/en/devel/)
 * Travis-CI [unit-tests](https://travis-ci.org/SheffieldML/GPy)
@@ -22,6 +23,10 @@ The Gaussian processes framework in Python.
 From now on we keep track of changes in the CHANGELOG.md.
 If you want your changes to show up there follow the [guidelines](#gl).
 In particular tag your commits by the [gitchangelog](https://github.com/vaab/gitchangelog) commit message format.
+
+Packaging uses [Poetry](https://python-poetry.org/) (CIP-0003). **End users**
+still install with `pip install gpy` from PyPI wheels. **Contributors** should
+use Poetry for editable installs and a locked environment (`poetry.lock`).
 
 ## Contributing to GPy
 
@@ -60,17 +65,9 @@ We have pulled the core parameterization out of GPy. It is a package called [par
 
 If you installed GPy with pip, just upgrade the package using:
 
-    $ pip install --upgrade GPy
+    $ pip install --upgrade gpy
 
-If you have the developmental version of GPy (using the develop or -e option) just install the dependencies by running
-
-    $ python setup.py develop
-
-again, in the GPy installation folder.
-
-A warning: This usually works, but sometimes `distutils/setuptools` opens a
-whole can of worms here, specially when compiled extensions are involved.
-If that is the case, it is best to clean the repo and reinstall.
+For a developmental install from a clone, use Poetry (see below).
 
 ## Supported Platforms:
 
@@ -79,7 +76,7 @@ If that is the case, it is best to clean the repo and reinstall.
 [<img src="https://upload.wikimedia.org/wikipedia/commons/8/8e/OS_X-Logo.svg" height=40px>](http://www.apple.com/osx/)
 [<img src="https://upload.wikimedia.org/wikipedia/commons/3/35/Tux.svg" height=40px>](https://en.wikipedia.org/wiki/List_of_Linux_distributions)
 
-Python 3.5 and higher
+Python 3.9 and higher
 
 ## Citation
 
@@ -121,14 +118,35 @@ We've also had luck with [enthought](http://www.enthought.com). Install scipy 1.
 
 If you'd like to install from source, or want to contribute to the project (i.e. by sending pull requests via github), read on.
 
+### Contributor install (Poetry)
+
+Requires [Poetry](https://python-poetry.org/docs/#installation) 1.8+ (2.x recommended).
+
+```bash
+git clone https://github.com/SheffieldML/GPy.git
+cd GPy
+poetry install --with dev
+poetry run pytest GPy/testing
+```
+
+`poetry.lock` pins the contributor environment for reproducibility. PyPI /
+`pip install gpy` installs do **not** use the lockfile.
+
+You can also build and install a local wheel without Poetry at runtime:
+
+```bash
+poetry build
+pip install dist/gpy-*.whl
+```
+
 ### Troubleshooting installation problems
 
-If you're having trouble installing GPy via `pip install GPy` here is a probable solution:
+If you're having trouble installing GPy via `pip install gpy` here is a probable solution:
 
     git clone https://github.com/SheffieldML/GPy.git
     cd GPy
     git checkout devel
-    python setup.py build_ext --inplace
+    poetry install --with dev
     pytest .
 
 ### Direct downloads
@@ -201,7 +219,7 @@ or from within IPython
 
 or using setuptools
 
-    python setup.py test
+    poetry run pytest GPy/testing
 
 
 ### Compiling documentation:

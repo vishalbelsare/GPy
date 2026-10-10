@@ -4,15 +4,15 @@
 """
 Testing state space related functions.
 """
+
 import numpy as np
+import pytest
 import GPy
 import GPy.models.state_space_model as SS_model
 from .state_space_main_tests import (
-    generate_x_points,
     generate_sine_data,
     generate_linear_data,
     generate_brownian_data,
-    generate_linear_plus_sin,
 )
 
 # from state_space_main_tests import generate_x_points, generate_sine_data, \
@@ -68,24 +68,12 @@ class TestStateSpaceKernels:
             x_pred_reg_2 = m2.predict(predict_X)
             x_quant_reg_2 = m2.predict_quantiles(predict_X)
 
-            np.testing.assert_array_almost_equal(
-                x_pred_reg_1[0], x_pred_reg_2[0], mean_compare_decimal
-            )
-            np.testing.assert_array_almost_equal(
-                x_pred_reg_1[1], x_pred_reg_2[1], var_compare_decimal
-            )
-            np.testing.assert_array_almost_equal(
-                x_quant_reg_1[0], x_quant_reg_2[0], mean_compare_decimal
-            )
-            np.testing.assert_array_almost_equal(
-                x_quant_reg_1[1], x_quant_reg_2[1], mean_compare_decimal
-            )
-            np.testing.assert_array_almost_equal(
-                m1.gradient, m2.gradient, var_compare_decimal
-            )
-            np.testing.assert_almost_equal(
-                m1.log_likelihood(), m2.log_likelihood(), var_compare_decimal
-            )
+            np.testing.assert_array_almost_equal(x_pred_reg_1[0], x_pred_reg_2[0], mean_compare_decimal)
+            np.testing.assert_array_almost_equal(x_pred_reg_1[1], x_pred_reg_2[1], var_compare_decimal)
+            np.testing.assert_array_almost_equal(x_quant_reg_1[0], x_quant_reg_2[0], mean_compare_decimal)
+            np.testing.assert_array_almost_equal(x_quant_reg_1[1], x_quant_reg_2[1], mean_compare_decimal)
+            np.testing.assert_array_almost_equal(m1.gradient, m2.gradient, var_compare_decimal)
+            np.testing.assert_almost_equal(m1.log_likelihood(), m2.log_likelihood(), var_compare_decimal)
 
     def test_matern32_kernel(
         self,
@@ -101,8 +89,8 @@ class TestStateSpaceKernels:
             x_interval=(0, 20),
             random=True,
         )
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
 
         ss_kernel = GPy.kern.sde_Matern32(
             1,
@@ -143,8 +131,8 @@ class TestStateSpaceKernels:
             x_interval=(0, 20),
             random=True,
         )
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
 
         ss_kernel = GPy.kern.sde_Matern52(
             1,
@@ -188,8 +176,8 @@ class TestStateSpaceKernels:
             x_interval=(0, 20),
             random=True,
         )
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
 
         ss_kernel = GPy.kern.sde_RBF(
             1,
@@ -236,8 +224,8 @@ class TestStateSpaceKernels:
             x_interval=(0, 20),
             random=True,
         )
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
 
         ss_kernel = GPy.kern.sde_StdPeriodic(
             1,
@@ -282,8 +270,8 @@ class TestStateSpaceKernels:
             x_interval=(0, 20),
             random=True,
         )
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
 
         ss_kernel = GPy.kern.sde_Matern32(1) * GPy.kern.sde_StdPeriodic(
             1,
@@ -329,8 +317,8 @@ class TestStateSpaceKernels:
             random=True,
         )
 
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
 
         ss_kernel = GPy.kern.sde_Linear(
             1,
@@ -381,8 +369,8 @@ class TestStateSpaceKernels:
             random=True,
         )
 
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
 
         ss_kernel = GPy.kern.sde_Brownian()
         gp_kernel = GPy.kern.Brownian()
@@ -413,13 +401,13 @@ class TestStateSpaceKernels:
             random=True,
         )
 
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
 
         ss_kernel = GPy.kern.sde_Exponential(
             1,
             Y.var(),
-            X.ptp() / 2.0,
+            np.ptp(X) / 2.0,
             active_dims=[
                 0,
             ],
@@ -427,7 +415,7 @@ class TestStateSpaceKernels:
         gp_kernel = GPy.kern.Exponential(
             1,
             Y.var(),
-            X.ptp() / 2.0,
+            np.ptp(X) / 2.0,
             active_dims=[
                 0,
             ],
@@ -478,13 +466,11 @@ class TestStateSpaceKernels:
         Y = Y + Y1
         Y -= Y.mean()
 
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
 
         def get_new_kernels():
-            ss_kernel = GPy.kern.sde_Linear(
-                1, X, variances=1
-            ) + GPy.kern.sde_StdPeriodic(
+            ss_kernel = GPy.kern.sde_Linear(1, X, variances=1) + GPy.kern.sde_StdPeriodic(
                 1,
                 period=5.0,
                 variance=300,
@@ -572,13 +558,11 @@ class TestStateSpaceKernels:
         Y = Y + Y1
         Y -= Y.mean()
 
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
 
         def get_new_kernels():
-            ss_kernel = GPy.kern.sde_Linear(
-                1, X, variances=1
-            ) + GPy.kern.sde_StdPeriodic(
+            ss_kernel = GPy.kern.sde_Linear(1, X, variances=1) + GPy.kern.sde_StdPeriodic(
                 1,
                 period=5.0,
                 variance=300,
@@ -620,7 +604,7 @@ class TestStateSpaceKernels:
                 var_compare_decimal=2,
             )
         except AssertionError:
-            raise SkipTest(
+            pytest.skip(
                 "Skipping Regular kalman filter for kernel addition, because it is not stable (normal situation) for this data."
             )
 
@@ -639,8 +623,8 @@ class TestStateSpaceKernels:
             random=True,
         )
 
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
 
         def get_new_kernels():
             ss_kernel = GPy.kern.sde_Matern32(1) * GPy.kern.sde_Matern52(1)
@@ -730,12 +714,12 @@ class TestStateSpaceKernels:
         X_test = X[X > 20]
         Y_test = Y[X > 20]
 
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
-        X_train.shape = (X_train.shape[0], 1)
-        Y_train.shape = (Y_train.shape[0], 1)
-        X_test.shape = (X_test.shape[0], 1)
-        Y_test.shape = (Y_test.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
+        X_train = X_train.reshape((X_train.shape[0], 1))
+        Y_train = Y_train.reshape((Y_train.shape[0], 1))
+        X_test = X_test.reshape((X_test.shape[0], 1))
+        Y_test = Y_test.reshape((Y_test.shape[0], 1))
         # Generate data <-
 
         # import pdb; pdb.set_trace()
@@ -839,12 +823,12 @@ class TestStateSpaceKernels:
         X_test = X[X > 20]
         Y_test = Y[X > 20]
 
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
-        X_train.shape = (X_train.shape[0], 1)
-        Y_train.shape = (Y_train.shape[0], 1)
-        X_test.shape = (X_test.shape[0], 1)
-        Y_test.shape = (Y_test.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
+        X_train = X_train.reshape((X_train.shape[0], 1))
+        Y_train = Y_train.reshape((Y_train.shape[0], 1))
+        X_test = X_test.reshape((X_test.shape[0], 1))
+        Y_test = Y_test.reshape((Y_test.shape[0], 1))
         # Generate data <-
 
         # import pdb; pdb.set_trace()
@@ -948,12 +932,12 @@ class TestStateSpaceKernels:
         X_test = X[X > 20]
         Y_test = Y[X > 20]
 
-        X.shape = (X.shape[0], 1)
-        Y.shape = (Y.shape[0], 1)
-        X_train.shape = (X_train.shape[0], 1)
-        Y_train.shape = (Y_train.shape[0], 1)
-        X_test.shape = (X_test.shape[0], 1)
-        Y_test.shape = (Y_test.shape[0], 1)
+        X = X.reshape((X.shape[0], 1))
+        Y = Y.reshape((Y.shape[0], 1))
+        X_train = X_train.reshape((X_train.shape[0], 1))
+        Y_train = Y_train.reshape((Y_train.shape[0], 1))
+        X_test = X_test.reshape((X_test.shape[0], 1))
+        Y_test = Y_test.reshape((Y_test.shape[0], 1))
         # Generate data <-
 
         # import pdb; pdb.set_trace()

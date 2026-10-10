@@ -1,9 +1,10 @@
 # #Copyright (c) 2012, GPy authors (see AUTHORS.txt).
 # Licensed under the BSD 3-clause license (see LICENSE.txt)
+from functools import reduce
+
 from matplotlib import pyplot as plt
 import numpy as np
 
-from .util import align_subplot_array, align_subplots
 
 
 def ax_default(fignum, ax):
@@ -20,17 +21,7 @@ def meanplot(x, mu, color="#3300FF", ax=None, fignum=None, linewidth=2, **kw):
     return axes.plot(x, mu, color=color, linewidth=linewidth, **kw)
 
 
-def gpplot(
-    x,
-    mu,
-    lower,
-    upper,
-    edgecol="#3300FF",
-    fillcol="#33CCFF",
-    ax=None,
-    fignum=None,
-    **kwargs
-):
+def gpplot(x, mu, lower, upper, edgecol="#3300FF", fillcol="#33CCFF", ax=None, fignum=None, **kwargs):
     _, axes = ax_default(fignum, ax)
 
     mu = mu.flatten()
@@ -47,14 +38,7 @@ def gpplot(
     kwargs["linewidth"] = 0.5
     if not "alpha" in kwargs.keys():
         kwargs["alpha"] = 0.3
-    plots.append(
-        axes.fill(
-            np.hstack((x, x[::-1])),
-            np.hstack((upper, lower[::-1])),
-            color=fillcol,
-            **kwargs
-        )
-    )
+    plots.append(axes.fill(np.hstack((x, x[::-1])), np.hstack((upper, lower[::-1])), color=fillcol, **kwargs))
 
     # this is the edge:
     plots.append(meanplot(x, upper, color=edgecol, linewidth=0.2, ax=axes))
@@ -89,9 +73,9 @@ def gradient_fill(x, percentiles, ax=None, fignum=None, **kwargs):
     for y1, y2 in pairwise(percentiles):
         import matplotlib.mlab as mlab
 
-        # Handle united data, such as dates
-        ax._process_unit_info(xdata=x, ydata=y1)
-        ax._process_unit_info(ydata=y2)
+        # Handle united data, such as dates (matplotlib >= 3.4 API)
+        ax._process_unit_info([("x", x), ("y", y1)], convert=False)
+        ax._process_unit_info([("y", y2)], convert=False)
 
         # Convert the arrays so we can work with them
         from numpy import ma
@@ -172,11 +156,7 @@ def gperrors(x, mu, lower, upper, edgecol=None, ax=None, fignum=None, **kwargs):
     if not "lw" in kwargs.keys():
         kwargs["lw"] = 1.0
 
-    plots.append(
-        axes.errorbar(
-            x, mu, yerr=np.vstack([mu - lower, upper - mu]), color=edgecol, **kwargs
-        )
-    )
+    plots.append(axes.errorbar(x, mu, yerr=np.vstack([mu - lower, upper - mu]), color=edgecol, **kwargs))
     plots[-1][0].remove()
     return plots
 
@@ -236,8 +216,6 @@ def x_frame2D(X, plot_limits=None, resolution=None):
         raise ValueError("Bad limits for plotting")
 
     resolution = resolution or 50
-    xx, yy = np.mgrid[
-        xmin[0] : xmax[0] : 1j * resolution, xmin[1] : xmax[1] : 1j * resolution
-    ]
+    xx, yy = np.mgrid[xmin[0] : xmax[0] : 1j * resolution, xmin[1] : xmax[1] : 1j * resolution]
     Xnew = np.vstack((xx.flatten(), yy.flatten())).T
     return Xnew, xx, yy, xmin, xmax

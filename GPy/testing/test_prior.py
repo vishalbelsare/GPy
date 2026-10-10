@@ -3,12 +3,23 @@
 import pytest
 import numpy as np
 import GPy
+from GPy.core.parameterization.priors import (
+    Gaussian,
+    Uniform,
+    LogGaussian,
+    MultivariateGaussian,
+    Gamma,
+    InverseGamma,
+    HalfT,
+    Exponential,
+    StudentT,
+)
 
 
 class TestPrior:
     def test_studentT(self):
         xmin, xmax = 1, 2.5 * np.pi
-        b, C, SNR = 1, 0, 0.1
+        b, C, _SNR = 1, 0, 0.1
         X = np.linspace(xmin, xmax, 500)
         y = b * X + C + 1 * np.sin(X)
         y += 0.05 * np.random.randn(len(X))
@@ -33,7 +44,7 @@ class TestPrior:
 
     def test_lognormal(self):
         xmin, xmax = 1, 2.5 * np.pi
-        b, C, SNR = 1, 0, 0.1
+        b, C, _SNR = 1, 0, 0.1
         X = np.linspace(xmin, xmax, 500)
         y = b * X + C + 1 * np.sin(X)
         y += 0.05 * np.random.randn(len(X))
@@ -46,7 +57,7 @@ class TestPrior:
 
     def test_Gamma(self):
         xmin, xmax = 1, 2.5 * np.pi
-        b, C, SNR = 1, 0, 0.1
+        b, C, _SNR = 1, 0, 0.1
         X = np.linspace(xmin, xmax, 500)
         y = b * X + C + 1 * np.sin(X)
         y += 0.05 * np.random.randn(len(X))
@@ -61,7 +72,7 @@ class TestPrior:
         # Test that this prior object can be instantiated and performs its basic functions
         # in integration.
         xmin, xmax = 1, 2.5 * np.pi
-        b, C, SNR = 1, 0, 0.1
+        b, C, _SNR = 1, 0, 0.1
         X = np.linspace(xmin, xmax, 500)
         y = b * X + C + 1 * np.sin(X)
         y += 0.05 * np.random.randn(len(X))
@@ -74,7 +85,7 @@ class TestPrior:
 
     def test_incompatibility(self):
         xmin, xmax = 1, 2.5 * np.pi
-        b, C, SNR = 1, 0, 0.1
+        b, C, _SNR = 1, 0, 0.1
         X = np.linspace(xmin, xmax, 500)
         y = b * X + C + 1 * np.sin(X)
         y += 0.05 * np.random.randn(len(X))
@@ -88,7 +99,7 @@ class TestPrior:
 
     def test_set_prior(self):
         xmin, xmax = 1, 2.5 * np.pi
-        b, C, SNR = 1, 0, 0.1
+        b, C, _SNR = 1, 0, 0.1
         X = np.linspace(xmin, xmax, 500)
         y = b * X + C + 1 * np.sin(X)
         y += 0.05 * np.random.randn(len(X))
@@ -104,7 +115,7 @@ class TestPrior:
 
     def test_uniform(self):
         xmin, xmax = 1, 2.5 * np.pi
-        b, C, SNR = 1, 0, 0.1
+        b, C, _SNR = 1, 0, 0.1
         X = np.linspace(xmin, xmax, 500)
         y = b * X + C + 1 * np.sin(X)
         y += 0.05 * np.random.randn(len(X))
@@ -133,7 +144,7 @@ class TestPrior:
 
     def test_set_gaussian_for_reals(self):
         xmin, xmax = 1, 2.5 * np.pi
-        b, C, SNR = 1, 0, 0.1
+        b, C, _SNR = 1, 0, 0.1
         X = np.linspace(xmin, xmax, 500)
         y = b * X + C + 1 * np.sin(X)
         y += 0.05 * np.random.randn(len(X))
@@ -149,7 +160,7 @@ class TestPrior:
 
     def test_fixed_domain_check(self):
         xmin, xmax = 1, 2.5 * np.pi
-        b, C, SNR = 1, 0, 0.1
+        b, C, _SNR = 1, 0, 0.1
         X = np.linspace(xmin, xmax, 500)
         y = b * X + C + 1 * np.sin(X)
         y += 0.05 * np.random.randn(len(X))
@@ -165,7 +176,7 @@ class TestPrior:
 
     def test_fixed_domain_check1(self):
         xmin, xmax = 1, 2.5 * np.pi
-        b, C, SNR = 1, 0, 0.1
+        b, C, _SNR = 1, 0, 0.1
         X = np.linspace(xmin, xmax, 500)
         y = b * X + C + 1 * np.sin(X)
         y += 0.05 * np.random.randn(len(X))
@@ -178,3 +189,117 @@ class TestPrior:
         # should raise an assertionerror.
         with pytest.raises(AssertionError):
             m.rbf.set_prior(gaussian)
+
+
+def initialize_gaussian_prior() -> None:
+    return Gaussian(0, 1)
+
+
+def initialize_uniform_prior() -> None:
+    return Uniform(0, 1)
+
+
+def initialize_log_gaussian_prior() -> None:
+    return LogGaussian(0, 1)
+
+
+def initialize_multivariate_gaussian_prior() -> None:
+    return MultivariateGaussian(np.zeros(2), np.eye(2))
+
+
+def initialize_gamma_prior() -> None:
+    return Gamma(1, 1)
+
+
+def initialize_inverse_gamma_prior() -> None:
+    return InverseGamma(1, 1)
+
+
+def initialize_dgplvm_prior() -> None:
+    # return DGPLVM(...)
+    raise NotImplementedError("No idea how to initialize this prior")
+
+
+def initialize_dgplvm_kfda_prior() -> None:
+    # return DGPLVM_KFDA(...)
+    raise NotImplementedError("No idea how to initialize this prior")
+
+
+def initialize_dgplvm_lamda_prior() -> None:
+    # return DGPLVM_Lamda(...)
+    raise NotImplementedError("No idea how to initialize this prior")
+
+
+def initialize_dgplvm_t_prior() -> None:
+    # return DGPLVM_T(1, 1, (1, 1))
+    raise NotImplementedError("No idea how to initialize this prior")
+
+
+def initialize_half_t_prior() -> None:
+    return HalfT(1, 1)
+
+
+def initialize_exponential_prior() -> None:
+    return Exponential(1)
+
+
+def initialize_student_t_prior() -> None:
+    return StudentT(1, 1, 1)
+
+
+PRIORS = {
+    "Gaussian": initialize_gaussian_prior,
+    "Uniform": initialize_uniform_prior,
+    "LogGaussian": initialize_log_gaussian_prior,
+    "MultivariateGaussian": initialize_multivariate_gaussian_prior,
+    "Gamma": initialize_gamma_prior,
+    "InverseGamma": initialize_inverse_gamma_prior,
+    # "DGPLVM": initialize_dgplvm_prior,
+    # "DGPLVM_KFDA": initialize_dgplvm_kfda_prior,
+    # "DGPLVM_Lamda": initialize_dgplvm_lamda_prior,
+    # "DGPLVM_T": initialize_dgplvm_t_prior,
+    "HalfT": initialize_half_t_prior,
+    "Exponential": initialize_exponential_prior,
+    "StudentT": initialize_student_t_prior,
+}
+
+
+def check_prior(prior_getter: str) -> None:
+    prior_getter()
+
+
+def test_priors() -> None:
+    for prior_name, prior_getter in PRIORS.items():
+        try:
+            check_prior(prior_getter)
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize {prior_name} prior") from e  # noqa E501
+
+
+def test_halft_matches_half_student_t() -> None:
+    from scipy import integrate, stats
+
+    prior = HalfT(2.0, 4.0)
+    theta = np.array([0.3, 1.2, 2.7])
+    # Twice the Student-t density with scale A and nu degrees of freedom
+    np.testing.assert_allclose(prior.lnpdf(theta), np.log(2.0) + stats.t(4.0, scale=2.0).logpdf(theta))
+    total, _ = integrate.quad(lambda t: np.exp(prior.lnpdf(np.array([t]))[0]), 0, np.inf)
+    np.testing.assert_allclose(total, 1.0)
+
+    eps = 1e-6
+    numerical = (prior.lnpdf(theta + eps) - prior.lnpdf(theta - eps)) / (2 * eps)
+    np.testing.assert_allclose(prior.lnpdf_grad(theta), numerical, rtol=1e-5)
+
+    np.random.seed(0)
+    samples = prior.rvs(40000)
+    assert np.all(samples > 0)
+    np.testing.assert_allclose(samples.mean(), 2.0, rtol=0.03)
+
+
+def test_exponential_rvs_uses_the_rate() -> None:
+    # Two Exponential priors with different rates can coexist
+    assert Exponential(1.0).l == 1.0
+    prior = Exponential(1.5)
+    assert prior.l == 1.5
+    np.random.seed(0)
+    np.testing.assert_allclose(prior.rvs(40000).mean(), 1 / 1.5, rtol=0.02)

@@ -3,6 +3,7 @@ Created on 4 Sep 2015
 
 @author: maxz
 """
+
 import pytest
 import numpy as np
 import GPy
@@ -14,7 +15,7 @@ except ImportError:
 
 
 class TestBGPLVM:
-    def setup(self):
+    def setup_method(self):
         np.random.seed(12345)
         X, W = np.random.normal(0, 1, (100, 6)), np.random.normal(0, 1, (6, 13))
         Y = X.dot(W) + np.random.normal(0, 0.1, (X.shape[0], W.shape[1]))
@@ -24,21 +25,19 @@ class TestBGPLVM:
         self.m_full = GPy.models.BayesianGPLVM(Y, self.Q)
 
     def test_lik_comparisons_m1_s0(self):
-        self.setup()
+        self.setup_method()
         # Test if the different implementations give the exact same likelihood as the full model.
         # All of the following settings should give the same likelihood and gradients as the full model:
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
             self.Y, self.Q, missing_data=True, stochastic=False
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
         assert m.checkgrad()
 
     def test_predict_missing_data(self):
-        self.setup()
+        self.setup_method()
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
             self.Y,
             self.Q,
@@ -47,9 +46,7 @@ class TestBGPLVM:
             batchsize=self.Y.shape[1],
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
 
         with pytest.raises(NotImplementedError):
@@ -71,7 +68,7 @@ class TestBGPLVM:
         np.testing.assert_allclose(var1[:, [0]], var2)
 
     def test_lik_comparisons_m0_s0(self):
-        self.setup()
+        self.setup_method()
         # Test if the different implementations give the exact same likelihood as the full model.
         # All of the following settings should give the same likelihood and gradients as the full model:
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
@@ -82,14 +79,12 @@ class TestBGPLVM:
             stochastic=False,
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
         assert m.checkgrad()
 
     def test_lik_comparisons_m1_s1(self):
-        self.setup()
+        self.setup_method()
         # Test if the different implementations give the exact same likelihood as the full model.
         # All of the following settings should give the same likelihood and gradients as the full model:
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
@@ -100,14 +95,12 @@ class TestBGPLVM:
             batchsize=self.Y.shape[1],
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
         assert m.checkgrad()
 
     def test_lik_comparisons_m0_s1(self):
-        self.setup()
+        self.setup_method()
         # Test if the different implementations give the exact same likelihood as the full model.
         # All of the following settings should give the same likelihood and gradients as the full model:
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
@@ -118,14 +111,12 @@ class TestBGPLVM:
             batchsize=self.Y.shape[1],
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
         assert m.checkgrad()
 
     def test_gradients_missingdata(self):
-        self.setup()
+        self.setup_method()
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
             self.Y,
             self.Q,
@@ -136,7 +127,7 @@ class TestBGPLVM:
         assert m.checkgrad()
 
     def test_gradients_missingdata_stochastics(self):
-        self.setup()
+        self.setup_method()
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
             self.Y, self.Q, missing_data=True, stochastic=True, batchsize=1
         )
@@ -147,7 +138,7 @@ class TestBGPLVM:
         assert m.checkgrad()
 
     def test_gradients_stochastics(self):
-        self.setup()
+        self.setup_method()
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
             self.Y, self.Q, missing_data=False, stochastic=True, batchsize=1
         )
@@ -158,7 +149,7 @@ class TestBGPLVM:
         assert m.checkgrad()
 
     def test_predict(self):
-        self.setup()
+        self.setup_method()
         # Test if the different implementations give the exact same likelihood as the full model.
         # All of the following settings should give the same likelihood and gradients as the full model:
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
@@ -169,42 +160,36 @@ class TestBGPLVM:
             batchsize=self.Y.shape[1],
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
         assert m.checkgrad()
 
 
 class TestSparseGPMinibatch:
-    def setup(self):
+    def setup_method(self):
         np.random.seed(12345)
         X, W = np.random.normal(0, 1, (100, 6)), np.random.normal(0, 1, (6, 13))
         Y = X.dot(W) + np.random.normal(0, 0.1, (X.shape[0], W.shape[1]))
         self.inan = np.random.binomial(1, 0.1, Y.shape).astype(bool)
         self.X, self.W, self.Y = X, W, Y
         self.Q = 3
-        self.m_full = GPy.models.SparseGPLVM(
-            Y, self.Q, kernel=GPy.kern.RBF(self.Q, ARD=True)
-        )
+        self.m_full = GPy.models.SparseGPLVM(Y, self.Q, kernel=GPy.kern.RBF(self.Q, ARD=True))
 
     def test_lik_comparisons_m1_s0(self):
-        self.setup()
+        self.setup_method()
         # Test if the different implementations give the exact same likelihood as the full model.
         # All of the following settings should give the same likelihood and gradients as the full model:
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
             self.Y, self.Q, X_variance=False, missing_data=True, stochastic=False
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
         assert m.checkgrad()
 
     @pytest.mark.skipif(climin is None, reason="climin not installed")
     def test_sparsegp_init(self):
-        self.setup()
+        self.setup_method()
         # Test if the different implementations give the exact same likelihood as the full model.
         # All of the following settings should give the same likelihood and gradients as the full model:
         np.random.seed(1234)
@@ -263,7 +248,7 @@ class TestSparseGPMinibatch:
         assert m.checkgrad()
 
     def test_predict_missing_data(self):
-        self.setup()
+        self.setup_method()
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
             self.Y,
             self.Q,
@@ -273,9 +258,7 @@ class TestSparseGPMinibatch:
             batchsize=self.Y.shape[1],
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
 
         mu1, var1 = m.predict(m.X, full_cov=False)
@@ -291,21 +274,19 @@ class TestSparseGPMinibatch:
             np.testing.assert_allclose(var1[:, :, i], var2)
 
     def test_lik_comparisons_m0_s0(self):
-        self.setup()
+        self.setup_method()
         # Test if the different implementations give the exact same likelihood as the full model.
         # All of the following settings should give the same likelihood and gradients as the full model:
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
             self.Y, self.Q, X_variance=False, missing_data=False, stochastic=False
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
         assert m.checkgrad()
 
     def test_lik_comparisons_m1_s1(self):
-        self.setup()
+        self.setup_method()
         # Test if the different implementations give the exact same likelihood as the full model.
         # All of the following settings should give the same likelihood and gradients as the full model:
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
@@ -317,14 +298,12 @@ class TestSparseGPMinibatch:
             batchsize=self.Y.shape[1],
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
         assert m.checkgrad()
 
     def test_lik_comparisons_m0_s1(self):
-        self.setup()
+        self.setup_method()
         # Test if the different implementations give the exact same likelihood as the full model.
         # All of the following settings should give the same likelihood and gradients as the full model:
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
@@ -336,14 +315,12 @@ class TestSparseGPMinibatch:
             batchsize=self.Y.shape[1],
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
         assert m.checkgrad()
 
     def test_gradients_missingdata(self):
-        self.setup()
+        self.setup_method()
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
             self.Y,
             self.Q,
@@ -355,7 +332,7 @@ class TestSparseGPMinibatch:
         assert m.checkgrad()
 
     def test_gradients_missingdata_stochastics(self):
-        self.setup()
+        self.setup_method()
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
             self.Y,
             self.Q,
@@ -376,7 +353,7 @@ class TestSparseGPMinibatch:
         assert m.checkgrad()
 
     def test_gradients_stochastics(self):
-        self.setup()
+        self.setup_method()
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
             self.Y,
             self.Q,
@@ -397,7 +374,7 @@ class TestSparseGPMinibatch:
         assert m.checkgrad()
 
     def test_predict(self):
-        self.setup()
+        self.setup_method()
         # Test if the different implementations give the exact same likelihood as the full model.
         # All of the following settings should give the same likelihood and gradients as the full model:
         m = GPy.models.bayesian_gplvm_minibatch.BayesianGPLVMMiniBatch(
@@ -409,8 +386,6 @@ class TestSparseGPMinibatch:
             batchsize=self.Y.shape[1],
         )
         m[:] = self.m_full[:]
-        np.testing.assert_almost_equal(
-            m.log_likelihood(), self.m_full.log_likelihood(), 7
-        )
+        np.testing.assert_almost_equal(m.log_likelihood(), self.m_full.log_likelihood(), 7)
         np.testing.assert_allclose(m.gradient, self.m_full.gradient)
         assert m.checkgrad()

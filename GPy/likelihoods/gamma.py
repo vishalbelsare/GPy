@@ -3,11 +3,11 @@
 
 
 import numpy as np
-from scipy import stats,special
-import scipy as sp
+from scipy import special
 from ..core.parameterization import Param
 from . import link_functions
 from .likelihood import Likelihood
+
 
 class Gamma(Likelihood):
     """
@@ -15,17 +15,18 @@ class Gamma(Likelihood):
 
     .. math::
         p(y_{i}|\\lambda(f_{i})) = \\frac{\\beta^{\\alpha_{i}}}{\\Gamma(\\alpha_{i})}y_{i}^{\\alpha_{i}-1}e^{-\\beta y_{i}}\\\\
-        \\alpha_{i} = \\beta y_{i}
+        \\alpha_{i} = \\beta \\lambda(f_{i})
 
     """
-    def __init__(self,gp_link=None,beta=1.):
+
+    def __init__(self, gp_link=None, beta=1.0):
         if gp_link is None:
             gp_link = link_functions.Log()
-        super(Gamma, self).__init__(gp_link, 'Gamma')
+        super(Gamma, self).__init__(gp_link, "Gamma")
 
-        self.beta = Param('beta', beta)
+        self.beta = Param("beta", beta)
         self.link_parameter(self.beta)
-        self.beta.fix()#TODO: gradients!
+        self.beta.fix()
 
     def pdf_link(self, link_f, y, Y_metadata=None):
         """
@@ -33,7 +34,7 @@ class Gamma(Likelihood):
 
         .. math::
             p(y_{i}|\\lambda(f_{i})) = \\frac{\\beta^{\\alpha_{i}}}{\\Gamma(\\alpha_{i})}y_{i}^{\\alpha_{i}-1}e^{-\\beta y_{i}}\\\\
-            \\alpha_{i} = \\beta y_{i}
+            \\alpha_{i} = \\beta \\lambda(f_{i})
 
         :param link_f: latent variables link(f)
         :type link_f: Nx1 array
@@ -44,9 +45,9 @@ class Gamma(Likelihood):
         :rtype: float
         """
         assert np.atleast_1d(link_f).shape == np.atleast_1d(y).shape
-        #return stats.gamma.pdf(obs,a = self.gp_link.transf(gp)/self.variance,scale=self.variance)
-        alpha = link_f*self.beta
-        objective = (y**(alpha - 1.) * np.exp(-self.beta*y) * self.beta**alpha)/ special.gamma(alpha)
+        # return stats.gamma.pdf(obs,a = self.gp_link.transf(gp)/self.variance,scale=self.variance)
+        alpha = link_f * self.beta
+        objective = (y ** (alpha - 1.0) * np.exp(-self.beta * y) * self.beta**alpha) / special.gamma(alpha)
         return np.exp(np.sum(np.log(objective)))
 
     def logpdf_link(self, link_f, y, Y_metadata=None):
@@ -54,8 +55,8 @@ class Gamma(Likelihood):
         Log Likelihood Function given link(f)
 
         .. math::
-            \\ln p(y_{i}|\lambda(f_{i})) = \\alpha_{i}\\log \\beta - \\log \\Gamma(\\alpha_{i}) + (\\alpha_{i} - 1)\\log y_{i} - \\beta y_{i}\\\\
-            \\alpha_{i} = \\beta y_{i}
+            \\ln p(y_{i}|\\lambda(f_{i})) = \\alpha_{i}\\log \\beta - \\log \\Gamma(\\alpha_{i}) + (\\alpha_{i} - 1)\\log y_{i} - \\beta y_{i}\\\\
+            \\alpha_{i} = \\beta \\lambda(f_{i})
 
         :param link_f: latent variables (link(f))
         :type link_f: Nx1 array
@@ -66,10 +67,12 @@ class Gamma(Likelihood):
         :rtype: float
 
         """
-        #alpha = self.gp_link.transf(gp)*self.beta
-        #return (1. - alpha)*np.log(obs) + self.beta*obs - alpha * np.log(self.beta) + np.log(special.gamma(alpha))
-        alpha = link_f*self.beta
-        log_objective = alpha*np.log(self.beta) - np.log(special.gamma(alpha)) + (alpha - 1)*np.log(y) - self.beta*y
+        # alpha = self.gp_link.transf(gp)*self.beta
+        # return (1. - alpha)*np.log(obs) + self.beta*obs - alpha * np.log(self.beta) + np.log(special.gamma(alpha))
+        alpha = link_f * self.beta
+        log_objective = (
+            alpha * np.log(self.beta) - np.log(special.gamma(alpha)) + (alpha - 1) * np.log(y) - self.beta * y
+        )
         return log_objective
 
     def dlogpdf_dlink(self, link_f, y, Y_metadata=None):
@@ -78,7 +81,7 @@ class Gamma(Likelihood):
 
         .. math::
             \\frac{d \\ln p(y_{i}|\\lambda(f_{i}))}{d\\lambda(f)} = \\beta (\\log \\beta y_{i}) - \\Psi(\\alpha_{i})\\beta\\\\
-            \\alpha_{i} = \\beta y_{i}
+            \\alpha_{i} = \\beta \\lambda(f_{i})
 
         :param link_f: latent variables (f)
         :type link_f: Nx1 array
@@ -89,9 +92,9 @@ class Gamma(Likelihood):
         :rtype: Nx1 array
 
         """
-        grad = self.beta*np.log(self.beta*y) - special.psi(self.beta*link_f)*self.beta
-        #old
-        #return -self.gp_link.dtransf_df(gp)*self.beta*np.log(obs) + special.psi(self.gp_link.transf(gp)*self.beta) * self.gp_link.dtransf_df(gp)*self.beta
+        grad = self.beta * np.log(self.beta * y) - special.psi(self.beta * link_f) * self.beta
+        # old
+        # return -self.gp_link.dtransf_df(gp)*self.beta*np.log(obs) + special.psi(self.gp_link.transf(gp)*self.beta) * self.gp_link.dtransf_df(gp)*self.beta
         return grad
 
     def d2logpdf_dlink2(self, link_f, y, Y_metadata=None):
@@ -101,8 +104,8 @@ class Gamma(Likelihood):
         The hessian will be 0 unless i == j
 
         .. math::
-            \\frac{d^{2} \\ln p(y_{i}|\lambda(f_{i}))}{d^{2}\\lambda(f)} = -\\beta^{2}\\frac{d\\Psi(\\alpha_{i})}{d\\alpha_{i}}\\\\
-            \\alpha_{i} = \\beta y_{i}
+            \\frac{d^{2} \\ln p(y_{i}|\\lambda(f_{i}))}{d^{2}\\lambda(f)} = -\\beta^{2}\\frac{d\\Psi(\\alpha_{i})}{d\\alpha_{i}}\\\\
+            \\alpha_{i} = \\beta \\lambda(f_{i})
 
         :param link_f: latent variables link(f)
         :type link_f: Nx1 array
@@ -116,9 +119,9 @@ class Gamma(Likelihood):
             Will return diagonal of hessian, since every where else it is 0, as the likelihood factorizes over cases
             (the distribution for y_i depends only on link(f_i) not on link(f_(j!=i))
         """
-        hess = -special.polygamma(1, self.beta*link_f)*(self.beta**2)
-        #old
-        #return -self.gp_link.d2transf_df2(gp)*self.beta*np.log(obs) + special.polygamma(1,self.gp_link.transf(gp)*self.beta)*(self.gp_link.dtransf_df(gp)*self.beta)**2 + special.psi(self.gp_link.transf(gp)*self.beta)*self.gp_link.d2transf_df2(gp)*self.beta
+        hess = -special.polygamma(1, self.beta * link_f) * (self.beta**2)
+        # old
+        # return -self.gp_link.d2transf_df2(gp)*self.beta*np.log(obs) + special.polygamma(1,self.gp_link.transf(gp)*self.beta)*(self.gp_link.dtransf_df(gp)*self.beta)**2 + special.psi(self.gp_link.transf(gp)*self.beta)*self.gp_link.d2transf_df2(gp)*self.beta
         return hess
 
     def d3logpdf_dlink3(self, link_f, y, Y_metadata=None):
@@ -126,8 +129,8 @@ class Gamma(Likelihood):
         Third order derivative log-likelihood function at y given link(f) w.r.t link(f)
 
         .. math::
-            \\frac{d^{3} \\ln p(y_{i}|\lambda(f_{i}))}{d^{3}\\lambda(f)} = -\\beta^{3}\\frac{d^{2}\\Psi(\\alpha_{i})}{d\\alpha_{i}}\\\\
-            \\alpha_{i} = \\beta y_{i}
+            \\frac{d^{3} \\ln p(y_{i}|\\lambda(f_{i}))}{d^{3}\\lambda(f)} = -\\beta^{3}\\frac{d^{2}\\Psi(\\alpha_{i})}{d\\alpha_{i}}\\\\
+            \\alpha_{i} = \\beta \\lambda(f_{i})
 
         :param link_f: latent variables link(f)
         :type link_f: Nx1 array
@@ -137,5 +140,72 @@ class Gamma(Likelihood):
         :returns: third derivative of likelihood evaluated at points f
         :rtype: Nx1 array
         """
-        d3lik_dlink3 = -special.polygamma(2, self.beta*link_f)*(self.beta**3)
+        d3lik_dlink3 = -special.polygamma(2, self.beta * link_f) * (self.beta**3)
         return d3lik_dlink3
+
+    def update_gradients(self, grads):
+        self.beta.gradient = grads[0]
+
+    def conditional_mean(self, gp):
+        """
+        Mean of y given f under the mean-rate parameterization:
+        alpha = beta * link(f), scale = 1/beta, so E[y|f] = link(f).
+        """
+        return self.gp_link.transf(gp)
+
+    def conditional_variance(self, gp):
+        """
+        Variance of y given f: Var[y|f] = link(f) / beta.
+        """
+        beta = float(np.asarray(self.beta).reshape(-1)[0])
+        return self.gp_link.transf(gp) / beta
+
+    def samples(self, gp, Y_metadata=None):
+        """
+        Draw observations y | f ~ Gamma(shape=beta*link(f), scale=1/beta).
+        """
+        orig_shape = gp.shape
+        link_f = self.gp_link.transf(gp).flatten()
+        beta = float(np.asarray(self.beta).reshape(-1)[0])
+        Ysim = np.random.gamma(shape=beta * link_f, scale=1.0 / beta)
+        return Ysim.reshape(orig_shape)
+
+    def dlogpdf_link_dbeta(self, link_f, y, Y_metadata=None):
+        """
+        Gradient of the log likelihood function at y, given link(f), w.r.t. beta
+
+        .. math::
+            \\frac{d \\ln p(y_{i}|\\lambda(f_{i}))}{d\\beta} = \\lambda(f_{i})(\\log \\beta y_{i} + 1 - \\Psi(\\alpha_{i})) - y_{i}\\\\
+            \\alpha_{i} = \\beta \\lambda(f_{i})
+        """
+        alpha = self.beta * link_f
+        return link_f * (np.log(self.beta * y) + 1.0 - special.psi(alpha)) - y
+
+    def dlogpdf_dlink_dbeta(self, link_f, y, Y_metadata=None):
+        """
+        Derivative of the gradient of the log likelihood w.r.t. link(f), w.r.t. beta
+        """
+        alpha = self.beta * link_f
+        return np.log(self.beta * y) + 1.0 - special.psi(alpha) - alpha * special.polygamma(1, alpha)
+
+    def d2logpdf_dlink2_dbeta(self, link_f, y, Y_metadata=None):
+        """
+        Derivative of the hessian of the log likelihood w.r.t. link(f), w.r.t. beta
+        """
+        alpha = self.beta * link_f
+        return -2.0 * self.beta * special.polygamma(1, alpha) - self.beta * alpha * special.polygamma(2, alpha)
+
+    def dlogpdf_link_dtheta(self, f, y, Y_metadata=None):
+        dlogpdf_dtheta = np.zeros((self.size, f.shape[0], f.shape[1]))
+        dlogpdf_dtheta[0, :, :] = self.dlogpdf_link_dbeta(f, y, Y_metadata=Y_metadata)
+        return dlogpdf_dtheta
+
+    def dlogpdf_dlink_dtheta(self, f, y, Y_metadata=None):
+        dlogpdf_dlink_dtheta = np.zeros((self.size, f.shape[0], f.shape[1]))
+        dlogpdf_dlink_dtheta[0, :, :] = self.dlogpdf_dlink_dbeta(f, y, Y_metadata=Y_metadata)
+        return dlogpdf_dlink_dtheta
+
+    def d2logpdf_dlink2_dtheta(self, f, y, Y_metadata=None):
+        d2logpdf_dlink2_dtheta = np.zeros((self.size, f.shape[0], f.shape[1]))
+        d2logpdf_dlink2_dtheta[0, :, :] = self.d2logpdf_dlink2_dbeta(f, y, Y_metadata=Y_metadata)
+        return d2logpdf_dlink2_dtheta

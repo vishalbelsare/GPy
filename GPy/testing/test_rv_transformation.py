@@ -9,13 +9,13 @@ import scipy.stats as st
 import GPy
 
 
-class TestModel(GPy.core.Model):
+class Model(GPy.core.Model):
     """
     A simple GPy model with one parameter.
     """
 
     def __init__(self, theta=1.0):
-        super(TestModel, self).__init__("test_model")
+        super(Model, self).__init__("test_model")
         theta = GPy.core.Param("theta", theta)
         self.link_parameter(theta)
 
@@ -25,7 +25,7 @@ class TestModel(GPy.core.Model):
 
 class TestRVTransformation:
     def _test_trans(self, trans):
-        m = TestModel()
+        m = Model()
         prior = GPy.priors.LogGaussian(0.5, 0.1)
         m.theta.set_prior(prior)
         m.theta.unconstrain()
@@ -47,7 +47,7 @@ class TestRVTransformation:
         # ax.hist(phi_s, normed=True, bins=100, alpha=0.25, label='Histogram')
         # ax.plot(phi, kde(phi), '--', linewidth=2, label='Kernel Density Estimation')
         # ax.plot(phi, pdf_phi, ':', linewidth=2, label='Transformed PDF')
-        # ax.set_xlabel(r'transformed $\theta$', fontsize=16)
+        # ax.set_xlabel(r'transformed $\\theta$', fontsize=16)
         # ax.set_ylabel('PDF', fontsize=16)
         # plt.legend(loc='best')
         # plt.show(block=True)
@@ -57,7 +57,7 @@ class TestRVTransformation:
 
     def _test_grad(self, trans):
         np.random.seed(1234)
-        m = TestModel(np.random.uniform(0.5, 1.5, 20))
+        m = Model(np.random.uniform(0.5, 1.5, 20))
         prior = GPy.priors.LogGaussian(0.5, 0.1)
         m.theta.set_prior(prior)
         m.theta.constrain(trans)
@@ -68,17 +68,13 @@ class TestRVTransformation:
     def test_Logexp(self):
         self._test_trans(GPy.constraints.Logexp())
 
-    @pytest.mark.skip(
-        "Gradient not checking right, @jameshensman what is going on here?"
-    )
+    @pytest.mark.skip("Gradient not checking right, @jameshensman what is going on here?")
     def test_Logexp_grad(self):
         self._test_grad(GPy.constraints.Logexp())
 
     def test_Exponent(self):
         self._test_trans(GPy.constraints.Exponent())
 
-    @pytest.mark.skip(
-        "Gradient not checking right, @jameshensman what is going on here?"
-    )
+    @pytest.mark.skip("Gradient not checking right, @jameshensman what is going on here?")
     def test_Exponent_grad(self):
         self._test_grad(GPy.constraints.Exponent())

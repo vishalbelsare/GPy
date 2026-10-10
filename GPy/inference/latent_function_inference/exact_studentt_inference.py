@@ -40,10 +40,11 @@ class ExactStudentTInference(LatentFunctionInference):
 
         # Gradients
         dL_dK = 0.5 * ((nu + N) / (nu + beta - 2) * tdot(alpha) - D * Wi)
-        dL_dnu = -N / (nu - 2.) + digamma(0.5 * (nu + N)) - digamma(0.5 * nu)
-        dL_dnu -= np.log(1 + beta / (nu - 2.))
+        dL_dnu = -N / (nu - 2.0) + digamma(0.5 * (nu + N)) - digamma(0.5 * nu)
+        dL_dnu -= np.log(1 + beta / (nu - 2.0))
         dL_dnu += ((nu + N) * beta) / ((nu - 2) * (beta + nu - 2))
         dL_dnu *= 0.5
-        gradients = {'dL_dK': dL_dK, 'dL_dnu': dL_dnu, 'dL_dm': alpha}
+        dL_dm = (nu + N) / (nu + beta - 2) * alpha
+        gradients = {"dL_dK": dL_dK, "dL_dnu": dL_dnu, "dL_dm": dL_dm}
 
         return posterior, log_marginal, gradients

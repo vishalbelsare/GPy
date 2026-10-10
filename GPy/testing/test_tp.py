@@ -3,12 +3,13 @@ Created on 14 Jul 2017, based on gp_tests
 
 @author: javdrher
 """
+
 import numpy as np
 import GPy
 
 
 class TestTP:
-    def setup(self):
+    def setup_method(self):
         np.random.seed(12345)
         self.N = 20
         self.N_new = 50
@@ -18,7 +19,7 @@ class TestTP:
         self.X_new = np.random.uniform(-3.0, 3.0, (self.N_new, 1))
 
     def test_setxy_gp(self):
-        self.setup()
+        self.setup_method()
         k = GPy.kern.RBF(1) + GPy.kern.White(1)
         m = GPy.models.TPRegression(self.X, self.Y, kernel=k)
         mu, var = m.predict(m.X)
@@ -34,7 +35,7 @@ class TestTP:
         from GPy.core.parameterization.param import Param
         from GPy.core.mapping import Mapping
 
-        self.setup()
+        self.setup_method()
 
         class Parabola(Mapping):
             def __init__(self, variance, degree=2, name="parabola"):
@@ -57,7 +58,7 @@ class TestTP:
 
             def update_gradients(self, dL_dF, X):
                 for i in range(self.degree + 1):
-                    self.variance.gradient[i] = (dL_dF * X ** (i)).sum(0)
+                    self.variance.gradient[i] = (dL_dF * X ** (i)).sum()
 
         X = np.linspace(-2, 2, 100)[:, None]
         k = GPy.kern.RBF(1) + GPy.kern.White(1)
@@ -66,9 +67,7 @@ class TestTP:
         p.randomize()
         Y = (
             p.f(X)
-            + np.random.multivariate_normal(
-                np.zeros(X.shape[0]), k.K(X) + np.eye(X.shape[0]) * 1e-8
-            )[:, None]
+            + np.random.multivariate_normal(np.zeros(X.shape[0]), k.K(X) + np.eye(X.shape[0]) * 1e-8)[:, None]
             + np.random.normal(0, 0.1, (X.shape[0], 1))
         )
         m = GPy.models.TPRegression(X, Y, kernel=k, mean_function=p)
@@ -76,7 +75,7 @@ class TestTP:
         _ = m.predict(m.X)
 
     def test_normalizer(self):
-        self.setup()
+        self.setup_method()
 
         k = GPy.kern.RBF(1) + GPy.kern.White(1)
         Y = self.Y
@@ -119,7 +118,7 @@ class TestTP:
         )
 
     def test_predict_equivalence(self):
-        self.setup()
+        self.setup_method()
 
         k = GPy.kern.RBF(1) + GPy.kern.White(1)
         m = GPy.models.TPRegression(self.X, self.Y, kernel=k)
@@ -143,7 +142,7 @@ class TestTP:
         assert not np.allclose(var1, var3)
 
     def test_gp_equivalence(self):
-        self.setup()
+        self.setup_method()
 
         k = GPy.kern.RBF(1)
         m = GPy.models.GPRegression(self.X, self.Y, kernel=k)

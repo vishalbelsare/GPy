@@ -3,6 +3,7 @@ Created on 13 Mar 2014
 
 @author: maxz
 """
+
 # import cPickle as pickle
 import pickle
 import pytest
@@ -38,11 +39,7 @@ class TestPickleSupport(ListDictTestCase):
     def test_load_pickle(self):
         import os
 
-        m = GPy.load(
-            os.path.join(
-                os.path.abspath(os.path.split(__file__)[0]), "pickle_test.pickle"
-            )
-        )
+        m = GPy.load(os.path.join(os.path.abspath(os.path.split(__file__)[0]), "pickle_test.pickle"))
         assert m.checkgrad()
         assert m.log_likelihood(), -4.7351019830022087
 
@@ -128,6 +125,20 @@ class TestPickleSupport(ListDictTestCase):
         np.testing.assert_allclose(par.gradient_full, pcopy.gradient_full)
         assert str(par) == str(pcopy)
         assert pcopy.checkgrad()
+
+    def test_pickle_kernel_after_gp_use(self):
+        """Kernels must round-trip after being linked into a GP (#605, #932)."""
+        X = np.linspace(0, 1, 5)[:, None]
+        Y = np.sin(X)
+        k = GPy.kern.RBF(1)
+        m = GPRegression(X, Y, kernel=k)
+        m.optimize(max_iters=5)
+        k2 = pickle.loads(pickle.dumps(k))
+        np.testing.assert_allclose(k2.param_array, k.param_array)
+        np.testing.assert_allclose(k2.K(X), k.K(X))
+        m2 = pickle.loads(pickle.dumps(m))
+        np.testing.assert_allclose(m2.param_array, m.param_array)
+        assert k2._parent_ is None
 
     def _callback(self, what, which):
         what.count += 1

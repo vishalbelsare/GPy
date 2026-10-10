@@ -30,15 +30,13 @@ def index_to_slices(index):
 
     [
         ret[ind_i].append(slice(*indexes_i))
-        for ind_i, indexes_i in zip(
-            ind[switchpoints[:-1]], zip(switchpoints, switchpoints[1:])
-        )
+        for ind_i, indexes_i in zip(ind[switchpoints[:-1]], zip(switchpoints, switchpoints[1:]))
     ]
     return ret
 
 
 def get_slices(input_list):
-    num_outputs = len(input_list)
+    len(input_list)
     _s = [0] + [_x.shape[0] for _x in input_list]
     _s = np.cumsum(_s)
     slices = [slice(a, b) for a, b in zip(_s[:-1], _s[1:])]
@@ -57,9 +55,7 @@ def build_XY(input_list, output_list=None, index=None):
         assert len(index) == num_outputs
         I = np.hstack([np.repeat(j, _x.shape[0]) for _x, j in zip(input_list, index)])
     else:
-        I = np.hstack(
-            [np.repeat(j, _x.shape[0]) for _x, j in zip(input_list, range(num_outputs))]
-        )
+        I = np.hstack([np.repeat(j, _x.shape[0]) for _x, j in zip(input_list, range(num_outputs))])
 
     X = np.vstack(input_list)
     X = np.hstack([X, I[:, None]])
@@ -67,19 +63,60 @@ def build_XY(input_list, output_list=None, index=None):
     return X, Y, I[:, None]  # slices
 
 
+def prepare_Xnew(Xnew, Y_metadata=None):
+    """
+    Prepare test inputs for multi-output / coregionalized prediction.
+
+    If ``Xnew`` is a list of per-output arrays (same convention as the
+    constructors), stack them and append an output-index column via
+    :func:`build_XY`. When ``Y_metadata`` is omitted, it is filled with
+    ``{'output_index': ...}`` matching that column.
+
+    Returns ``(Xnew, Y_metadata)``.
+    """
+    if isinstance(Xnew, list):
+        Xnew, _, ind = build_XY(Xnew, None)
+        if Y_metadata is None:
+            Y_metadata = {"output_index": ind}
+    return Xnew, Y_metadata
+
+
+def coerce_coregionalized_XY(X, Y, output_index=None):
+    """
+    Coerce list-of-arrays or stacked arrays for coregionalized ``set_XY``.
+
+    Returns ``(X, Y, output_index)``. Either ``X`` or ``Y`` may be ``None``
+    (leave that side unchanged). Mixing a list with a non-list for the
+    arguments being updated raises ``TypeError``.
+    """
+    x_list = isinstance(X, list)
+    y_list = isinstance(Y, list)
+    if x_list and y_list:
+        return build_XY(X, Y)
+    if x_list and Y is not None and not y_list:
+        raise TypeError("If X is a list, Y must be a list or None")
+    if y_list and X is not None and not x_list:
+        raise TypeError("If Y is a list, X must be a list or None")
+    if x_list:
+        X, _, output_index = build_XY(X, None)
+        return X, Y, output_index
+    if y_list:
+        dummy = [np.zeros((y.shape[0], 1)) for y in Y]
+        _, Y, output_index = build_XY(dummy, Y)
+        return X, Y, output_index
+    if X is not None:
+        output_index = np.asarray(X[:, -1:], dtype=int)
+    return X, Y, output_index
+
+
 def build_likelihood(Y_list, noise_index, likelihoods_list=None):
     Ny = len(Y_list)
     if likelihoods_list is None:
-        likelihoods_list = [
-            GPy.likelihoods.Gaussian(name="Gaussian_noise_%s" % j)
-            for y, j in zip(Y_list, range(Ny))
-        ]
+        likelihoods_list = [GPy.likelihoods.Gaussian(name="Gaussian_noise_%s" % j) for y, j in zip(Y_list, range(Ny))]
     else:
         assert len(likelihoods_list) == Ny
     # likelihood = GPy.likelihoods.mixed_noise.MixedNoise(likelihoods_list=likelihoods_list, noise_index=noise_index)
-    likelihood = GPy.likelihoods.mixed_noise.MixedNoise(
-        likelihoods_list=likelihoods_list
-    )
+    likelihood = GPy.likelihoods.mixed_noise.MixedNoise(likelihoods_list=likelihoods_list)
     return likelihood
 
 
@@ -96,9 +133,7 @@ def ICM(input_dim, num_outputs, kernel, W_rank=1, W=None, kappa=None, name="ICM"
     """
     if kernel.input_dim != input_dim:
         kernel.input_dim = input_dim
-        warnings.warn(
-            "kernel's input dimension overwritten to fit input_dim parameter."
-        )
+        warnings.warn("kernel's input dimension overwritten to fit input_dim parameter.")
 
     K = kernel.prod(
         GPy.kern.Coregionalize(
@@ -126,7 +161,7 @@ def LCM(input_dim, num_outputs, kernels_list, W_rank=1, name="ICM"):
     :param W_rank: number tuples of the corregionalization parameters 'W'
     :type W_rank: integer
     """
-    Nk = len(kernels_list)
+    len(kernels_list)
     K = ICM(input_dim, num_outputs, kernels_list[0], W_rank, name="%s%s" % (name, 0))
     j = 1
     for kernel in kernels_list[1:]:

@@ -1,13 +1,14 @@
 # Copyright (c) 2015, James Hensman
 
 from ..core.mapping import Mapping
-from ..core import Param
+
 
 class Identity(Mapping):
     """
     A mapping that does nothing!
     """
-    def __init__(self, input_dim, output_dim, name='identity'):
+
+    def __init__(self, input_dim, output_dim, name="identity"):
         super(Identity, self).__init__(input_dim, output_dim, name)
 
     def f(self, X):

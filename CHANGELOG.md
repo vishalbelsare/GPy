@@ -1,6 +1,108 @@
 # Changelog
 
 ## Unreleased
+* CIP-0005: enable `F401` (unused import); ignore re-exports in `**/__init__.py`
+* CIP-0005: enable `F841` (unused variable) and clear findings
+* CIP-0005: widen pyflakes (`F901`/`F523`/`F601`/`F811`), fix findings, and fail CI on configured `ruff check`
+* docs: close CIP-0003/0004/0006/0007 as verified; CIP-0005 remains In Progress (Phase 3 widen / Phase 4)
+* CIP-0005 Phase 3: clear undefined-name / syntax lint (E9/F821) so narrow `ruff check` is green
+* CIP-0005 Phase 2: `ruff format` on `GPy/kern` (format-only; completes Phase 2 package slices)
+* CIP-0005 Phase 2: `ruff format` on `GPy/models` (format-only; no behaviour change)
+* CIP-0005 Phase 2: `ruff format` on `GPy/plotting` (format-only; no behaviour change)
+* CIP-0005 Phase 2: `ruff format` on `GPy/util` (format-only; no behaviour change)
+* CIP-0005 Phase 2: `ruff format` on `GPy/inference` (format-only; no behaviour change)
+* CIP-0005 Phase 2: `ruff format` on `GPy/likelihoods` (format-only; no behaviour change)
+* CIP-0005 Phase 2: `ruff format` on `GPy/core` (format-only; no behaviour change)
+* CIP-0005 Phase 2: `ruff format` on `GPy/mappings` (format-only; no behaviour change)
+* CIP-0005 Phase 2: `ruff format` on `GPy/examples` (format-only; no behaviour change)
+* CIP-0005 Phase 2: `ruff format` on `GPy/testing` (format-only; no behaviour change)
+* document multi-output / coregionalized regression (ICM/LCM, predict `Y_metadata`, list `set_XY`) and let `GPCoregionalizedRegression.predict` accept per-output list inputs like `MultioutputGP` (#1099, #1016)
+* fix `GPMultioutRegression` when `num_inducing[1]` exceeds the number of outputs: cap Mr and size `qU_var_r_*` / `qU_mean` from the actual `Z_row` so init no longer broadcast-fails (#733)
+* `GPHeteroscedasticRegression` accepts `mean_function=` like `GPRegression` (#875)
+* fix `set_XY` for heteroscedastic Gaussian regression when the number of observations changes: refresh `Y_metadata['output_index']` and resize `het_Gauss.variance` (#959, #858)
+* matplotlib `GPy.plotting.show` accepts the plots `dict` from `model.plot()` / `add_to_canvas`, as well as Axes/Figure (#920; alternative to #989)
+* switch packaging to Poetry (CIP-0003 Option A): `pyproject.toml` + `build_extension.py` Cython hook, committed contributor `poetry.lock`, NumPy ≥ 2 / SciPy in the build env / Cython build-only / optional `tables`; supersedes #1080 (@MartinBubel)
+* pickle kernels (and other parameterized subtrees) after they have been linked into a GP: omit the parent link from the memento so load no longer fails with missing `_name` (#605, #932; paramz ≥ 0.10.1 preferred)
+* refresh latent inference after `optimize_restarts` restores the best hyperparameters, so EP site approximations match that restart instead of the last one (#1109)
+* fix Student-t full observation predictive covariance (`full_cov=True`): add constant observation noise on the diagonal for the identity link, and stop the base likelihood from silently ravelling a latent covariance through 1D quadrature (#993)
+* add a 1D Wiener Velocity kernel (once-integrated Brownian motion; Solin 2016) with serialization and gradient checks (#1003, @Duncan10)
+* add `to_dict` / `from_dict` for `PeriodicExponential`, `PeriodicMatern32` and `PeriodicMatern52`, and persist `Coregionalize.rank` so multi-rank coregionalization round-trips (idea from #976)
+* add CIP-0005 Phase 1 Ruff tooling: narrow `ruff check` config, optional pre-commit hooks, and a non-blocking CI lint job (does not enforce format or widen rules yet)
+* implement `Symmetric.gradients_X_diag` consistent with `Kdiag` (missing method identified in #1002; cross-term gradients included)
+* use `link_parameter` in leftover `splitKern` / `TruncLinear` kernels after the paramz rename (#978)
+* fix plotting for matplotlib ≥ 3.4: call `_process_unit_info` with the new datasets API in `plot_definitions` and `base_plots`, and require `matplotlib >= 3.4` in the plotting extra (#953 / idea from #960)
+* honour `compress` and `save_data` in `GP.save_model` and `SparseGPClassification.save_model` (same bug as #938; regression/classification fixed there by Peter Scherpelz) and add a regression test for both flags
+* keep running remaining kernel gradient sub-checks in `check_kernel_gradient_functions` after the first failure, so later failures are not hidden (idea from #867)
+* add `normalizer` and list-aware `set_XY` to `GPCoregionalizedRegression` and `SparseGPCoregionalizedRegression` (API parity with `GPRegression`; idea from #859)
+* implement `Gamma.conditional_mean`, `conditional_variance` and `samples`, so `predict` works for Gamma + Laplace (mean-rate form: E[y|f] = link(f), Var[y|f] = link(f)/beta)
+* fix the sampling fallback of `Likelihood.predictive_values`, which passed a `samples` argument that the likelihoods' `samples` methods do not accept, so `predict` raised `TypeError` for likelihoods without a conditional mean (`Exponential`, `Weibull`, `LogLogistic`)
+* fix `StudentT.conditional_variance`, which left out `sigma2` and returned an array, so `predictive_variance` and `predict` of models with a `StudentT` likelihood raised `TypeError` with NumPy 2 (and the variance was wrong for `sigma2 != 1`)
+* fix `GPRegressionGrid` (`GaussianGridInference`) on grids with more than three values in a dimension: the unique values were taken from a `set`, whose order is not sorted, so the Kronecker factors did not match the order of the data and the likelihood, gradients and predictions were wrong
+* fix `posterior_samples_f` (and `posterior_samples`) with a normalizer and several output columns, which raised `ValueError` when scaling the full covariance
+* fix the `PiecewiseLinear` mapping at the breaks, where it returned `x` instead of the value of the break, and `PiecewiseLinear.gradients_X`, which raised `TypeError` for an `(N, 1)` `dL_dF`
+* include the gradient of the mean function in `predictive_gradients`: the predicted mean adds the mean function, but its gradient was left out
+* fix the `HalfT` prior: `lnpdf` was missing the `log 2` and used `-0.5 log A` instead of `-log A` (it did not integrate to 1), `lnpdf_grad` was wrong for `A != 1` and used the first element for every entry of an array, and `rvs` set the negative draws to 0 instead of folding them
+* fix the `Exponential` prior: `rvs` used the rate as the scale, and creating a second `Exponential` prior with a different rate raised `TypeError`
+* respect the normalizer in `posterior_samples` and `log_predictive_density` / `log_predictive_density_sampling`: the noise of the samples was added on the normalized scale, so the samples of `Y` had too little variance, and the predictive density compared `Y` with the predictions on the normalized scale
+* implement `MixedNoise.log_predictive_density`, so `log_predictive_density` works for `GPCoregionalizedRegression` and other models with a `MixedNoise` likelihood when `Y_metadata['output_index']` is given (#893)
+* fix `Likelihood.log_predictive_density` for likelihoods without a closed form: with NumPy 2 it raised `TypeError` for `StudentT`, `Gamma`, `Weibull` and `LogLogistic`, and a `nan` in the far tails (e.g. `Poisson` with `y = 0`) stopped at a leftover `ipdb` breakpoint. It now integrates over 20 standard deviations around the predictive mean
+* compute `Bernoulli.variational_expectations` (probit link) with `log_ndtr` instead of clipping the probabilities at `1e-9`: the clipping made the expectation and its gradient wrong for points misclassified by more than about 6 standard deviations (the gradient was close to 0) and for large variances
+* fix `Weibull.samples`: it used `exp(f)` as the Weibull scale, while `logpdf` uses `exp(f) ** (1 / r)`, so the samples did not follow the likelihood
+* fix `GPClassification.from_gp` and `GPClassification.from_dict`, which raised a `TypeError` and passed the model's components to the wrong arguments
+* restrict wheel build and PyPI deploy jobs to GitHub `release` events again, so ordinary `devel` pushes stop re-uploading the current version and failing with HTTP 400
+* close the configuration and dataset files read when `GPy` is imported, which removes the `ResourceWarning`s (#950)
+* fix the quadrature in `Likelihood.predictive_mean` and `predictive_variance`: it failed with NumPy 2, could miss a narrow posterior far from zero and return 0 (#981), and integrated `E[E(y|f)^2]` over an empty range
+* `GPRegression.load_model` returns a `GPRegression` instead of a plain `GP`
+* implement the gradients of the `Gamma` likelihood with respect to `beta`, so it works with Laplace inference (#1037)
+* support saving and loading `SparseGPRegression` models with `save_model` / `load_model` (#535)
+* fix saving and loading `WarpedGP` models: the warping function is now serialized and the loaded model is a `WarpedGP` again (#1097)
+* compare strings and integers by value instead of identity in `Symmetric` and `MRD`, which fixes the `SyntaxWarning`s on import and `Symmetric` rejecting a `symmetry_type` built at runtime (#1110)
+
+## v1.14.2 (2026-08-07)
+* Fix ci build job
+
+## v1.14.1 (2026-08-05)
+* Patch ci build and deploy jobs
+
+## v1.14.0 (2026-08-05)
+* add support for NumPy 2, including compatibility fixes across inference, kernels, likelihoods, state-space models, plotting, and utilities
+
+* update dependencies for NumPy 2 compatibility: require `paramz>0.9.6`, remove the NumPy and SciPy upper bounds, and require `scipy>=1.3.0`
+
+* modernize package builds with PEP 517 build metadata, isolated build dependencies, and on-demand Cython generation; generated Cython C sources are no longer distributed
+
+* update test setup hooks for current pytest compatibility and refresh tests for the NumPy 2 behavior
+
+* refresh GitHub Actions to test Python 3.11–3.14 on Linux, macOS, and Windows, and build release artifacts for the same supported versions
+
+* add a VS Code development-container configuration
+
+* correct state-space periodic-kernel warning messages and related documentation typos
+
+* fix pickle and deep copy for classification models inheriting from EP #1108 [olamarre]
+
+* update prior `__new__` methods #1098 [MartinBubel]
+
+* fix invalid escape sequence #1011 [janmayer]
+
+## v1.13.2 (2024-07-21)
+* update string checks in initialization method for latent variable and put `empirical_samples` init-method on a deprecation path
+
+* update dependencies to `numpy>=1.7.0,<2.0.0`
+
+* update import in `.plotting.matplot_dep.defaults` due to change in matplotlib
+
+* Correct dl_dm term in student t inference #1065
+
+## v1.13.1 (2024-01-14)
+
+* limit `scipy<1.12` as macos and linux jobs install some pre-release version of `scipy==1.12` which breaks tests
+
+## v1.13.0 (2023-12-20)
+
+* update `paramz` depdency to `>=0.9.6`
+
+* limit supported python versions to `">=3.9"` in accordance with numpy
 
 * Change from `nosetest` to `pytest`
 

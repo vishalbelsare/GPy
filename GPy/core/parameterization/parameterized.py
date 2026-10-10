@@ -1,11 +1,13 @@
 # Copyright (c) 2014, Max Zwiessele, James Hensman
 # Licensed under the BSD 3-clause license (see LICENSE.txt)
 
-from paramz  import Parameterized
+from paramz import Parameterized
 from .priorizable import Priorizable
 
 import logging
+
 logger = logging.getLogger("parameters changed meta")
+
 
 class Parameterized(Parameterized, Priorizable):
     """
@@ -48,5 +50,13 @@ class Parameterized(Parameterized, Priorizable):
 
         If you want to operate on all parameters use m[''] to wildcard select all paramters
         and concatenate them. Printing m[''] will result in printing of all parameters in detail.
-    """     
-    pass
+    """
+
+    def __getstate__(self):
+        state = super(Parameterized, self).__getstate__()
+        # Compatible with paramz < 0.10.1: omit the parent link so pickling a
+        # used subtree (e.g. a kernel attached to a GP) does not serialize the
+        # whole model and hit incomplete-object cycles on load (#605, #932).
+        # paramz >= 0.10.1 already omits `_parent_` in Pickleable.__getstate__.
+        state.pop("_parent_", None)
+        return state

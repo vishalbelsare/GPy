@@ -5,20 +5,18 @@
 Main functionality for state-space inference.
 """
 
-import collections  # for cheking whether a variable is iterable
 import types  # for cheking whether a variable is a function
 
 import numpy as np
 import scipy as sp
 import scipy.linalg as linalg
-
-import warnings
+from typing import Iterable
 
 try:
     from . import state_space_setup
 
     setup_available = True
-except ImportError as e:
+except ImportError:
     setup_available = False
 
 
@@ -30,7 +28,7 @@ try:
     cython_code_available = True
     if print_verbose:
         print("state_space: cython is available")
-except ImportError as e:
+except ImportError:
     cython_code_available = False
 
 # cython_code_available = False
@@ -50,6 +48,42 @@ if print_verbose:
 tmp_buffer = None
 
 
+def psd_matrix_inverse(k, mat, U, S, p_largest_cond_num, p_regularization_type):
+    """
+    Invert a PSD matrix from its SVD factors, with optional regularization.
+
+    Regularization types follow Q_inverse docstring:
+      1: 1/(S + r)
+      2: S/(S^2 + r)
+    where r is chosen so the effective condition number is at most p_largest_cond_num.
+    """
+    S = np.asarray(S, dtype=float).copy()
+    S[S < 0] = 0.0
+    positive = S > 0
+    if not np.any(positive):
+        return np.zeros_like(mat)
+
+    smax = S[positive].max()
+    smin = S[positive].min()
+    if smin > 0 and (smax / smin) > p_largest_cond_num and p_largest_cond_num > 1:
+        if p_regularization_type == 1:
+            r = (smax - p_largest_cond_num * smin) / (p_largest_cond_num - 1.0)
+            r = max(r, 0.0)
+            S_inv = np.zeros_like(S)
+            S_inv[positive] = 1.0 / (S[positive] + r)
+        else:
+            r = (smax * smax - p_largest_cond_num * smin * smin) / (p_largest_cond_num - 1.0)
+            r = max(r, 0.0)
+            S_inv = np.zeros_like(S)
+            S_inv[positive] = S[positive] / (S[positive] * S[positive] + r)
+    else:
+        S_inv = np.zeros_like(S)
+        S_inv[positive] = 1.0 / S[positive]
+
+    # Symmetric PSD: A ≈ U diag(S) U.T → A^{-1} ≈ U diag(S_inv) U.T
+    return (U * S_inv) @ U.T
+
+
 class Dynamic_Callables_Python(object):
     def f_a(self, k, m, A):
         """
@@ -60,7 +94,7 @@ class Dynamic_Callables_Python(object):
             A_{k}.
         """
 
-        raise NotImplemented("f_a is not implemented!")
+        raise NotImplementedError("f_a is not implemented!")
 
     def Ak(self, k, m, P):  # returns state iteration matrix
         """
@@ -71,14 +105,14 @@ class Dynamic_Callables_Python(object):
             P: parameter for Jacobian, usually covariance matrix.
         """
 
-        raise NotImplemented("Ak is not implemented!")
+        raise NotImplementedError("Ak is not implemented!")
 
     def Qk(self, k):
         """
         function (k). Returns noise matrix of dynamic model on iteration k.
                 k (iteration number). starts at 0
         """
-        raise NotImplemented("Qk is not implemented!")
+        raise NotImplementedError("Qk is not implemented!")
 
     def Q_srk(self, k):
         """
@@ -90,21 +124,21 @@ class Dynamic_Callables_Python(object):
         This function is implemented to use SVD prediction step.
         """
 
-        raise NotImplemented("Q_srk is not implemented!")
+        raise NotImplementedError("Q_srk is not implemented!")
 
     def dAk(self, k):
         """
         function (k). Returns the derivative of A on iteration k.
                 k (iteration number). starts at 0
         """
-        raise NotImplemented("dAk is not implemented!")
+        raise NotImplementedError("dAk is not implemented!")
 
     def dQk(self, k):
         """
         function (k). Returns the derivative of Q on iteration k.
                 k (iteration number). starts at 0
         """
-        raise NotImplemented("dQk is not implemented!")
+        raise NotImplementedError("dQk is not implemented!")
 
     def reset(self, compute_derivatives=False):
         """
@@ -112,7 +146,7 @@ class Dynamic_Callables_Python(object):
         (to k eq. 0).
         """
 
-        raise NotImplemented("reset is not implemented!")
+        raise NotImplementedError("reset is not implemented!")
 
 
 if use_cython:
@@ -131,7 +165,7 @@ class Measurement_Callables_Python(object):
             H_{k}.
         """
 
-        raise NotImplemented("f_a is not implemented!")
+        raise NotImplementedError("f_a is not implemented!")
 
     def Hk(self, k, m_pred, P_pred):  # returns state iteration matrix
         """
@@ -142,7 +176,7 @@ class Measurement_Callables_Python(object):
             P: parameter for Jacobian, usually covariance matrix.
         """
 
-        raise NotImplemented("Hk is not implemented!")
+        raise NotImplementedError("Hk is not implemented!")
 
     def Rk(self, k):
         """
@@ -150,7 +184,7 @@ class Measurement_Callables_Python(object):
             on iteration k.
             k (iteration number). starts at 0
         """
-        raise NotImplemented("Rk is not implemented!")
+        raise NotImplementedError("Rk is not implemented!")
 
     def R_isrk(self, k):
         """
@@ -161,21 +195,21 @@ class Measurement_Callables_Python(object):
         This function is implemented to use SVD prediction step.
         """
 
-        raise NotImplemented("Q_srk is not implemented!")
+        raise NotImplementedError("Q_srk is not implemented!")
 
     def dHk(self, k):
         """
         function (k). Returns the derivative of H on iteration k.
                 k (iteration number). starts at 0
         """
-        raise NotImplemented("dAk is not implemented!")
+        raise NotImplementedError("dAk is not implemented!")
 
     def dRk(self, k):
         """
         function (k). Returns the derivative of R on iteration k.
                 k (iteration number). starts at 0
         """
-        raise NotImplemented("dQk is not implemented!")
+        raise NotImplementedError("dQk is not implemented!")
 
     def reset(self, compute_derivatives=False):
         """
@@ -183,7 +217,7 @@ class Measurement_Callables_Python(object):
         (to k eq. 0)
         """
 
-        raise NotImplemented("reset is not implemented!")
+        raise NotImplementedError("reset is not implemented!")
 
 
 if use_cython:
@@ -302,9 +336,7 @@ class Std_Measurement_Callables_Python(R_handling_Class):
         dH=None,
         dR=None,
     ):
-        super(Std_Measurement_Callables_Python, self).__init__(
-            R, index, R_time_var_index, unique_R_number, dR
-        )
+        super(Std_Measurement_Callables_Python, self).__init__(R, index, R_time_var_index, unique_R_number, dR)
 
         self.H = H
         self.H_time_var_index = int(H_time_var_index)
@@ -340,9 +372,7 @@ class Std_Measurement_Callables_Python(R_handling_Class):
 
 
 if use_cython:
-    Std_Measurement_Callables_Class = (
-        state_space_cython.Std_Measurement_Callables_Cython
-    )
+    Std_Measurement_Callables_Class = state_space_cython.Std_Measurement_Callables_Cython
 else:
     Std_Measurement_Callables_Class = Std_Measurement_Callables_Python
 
@@ -462,9 +492,7 @@ class Std_Dynamic_Callables_Python(Q_handling_Class):
         dA=None,
         dQ=None,
     ):
-        super(Std_Dynamic_Callables_Python, self).__init__(
-            Q, index, Q_time_var_index, unique_Q_number, dQ
-        )
+        super(Std_Dynamic_Callables_Python, self).__init__(Q, index, Q_time_var_index, unique_Q_number, dQ)
 
         self.A = A
         self.A_time_var_index = np.asarray(A_time_var_index, np.int_)
@@ -569,9 +597,7 @@ class DescreteStateSpaceMeta(type):
                     state_space_cython._cont_discr_kalman_filter_raw_Cython
                 )
 
-        return super(DescreteStateSpaceMeta, typeclass).__new__(
-            typeclass, name, bases, attributes
-        )
+        return super(DescreteStateSpaceMeta, typeclass).__new__(typeclass, name, bases, attributes)
 
 
 class DescreteStateSpace(object):
@@ -641,16 +667,12 @@ class DescreteStateSpace(object):
         elif len(shape) == 2:
             if desired_dim == 3:
                 return (
-                    ((shape[1], 1, 1), shape)
-                    if (shape[0] == 1)
-                    else ((shape[0], shape[1], 1), shape)
+                    ((shape[1], 1, 1), shape) if (shape[0] == 1) else ((shape[0], shape[1], 1), shape)
                 )  # convert to column
                 # vector
             elif desired_dim == 2:
                 return (
-                    ((shape[1], 1), shape)
-                    if (shape[0] == 1)
-                    else ((shape[0], shape[1]), None)
+                    ((shape[1], 1), shape) if (shape[0] == 1) else ((shape[0], shape[1]), None)
                 )  # convert to column vector
 
         else:  # len(shape) == 3
@@ -809,7 +831,8 @@ class DescreteStateSpace(object):
         p_R = np.atleast_1d(p_R)
 
         # Reshape and check measurements:
-        Y.shape, old_Y_shape = cls._reshape_input_data(Y.shape)
+        Y_shape, old_Y_shape = cls._reshape_input_data(Y.shape)
+        Y = Y.reshape(Y_shape)
         measurement_dim = Y.shape[1]
         time_series_no = Y.shape[2]  # multiple time series mode
 
@@ -826,12 +849,7 @@ class DescreteStateSpace(object):
         # Check index
         old_index_shape = None
         if index is None:
-            if (
-                (len(p_A.shape) == 3)
-                or (len(p_Q.shape) == 3)
-                or (len(p_H.shape) == 3)
-                or (len(p_R.shape) == 3)
-            ):
+            if (len(p_A.shape) == 3) or (len(p_Q.shape) == 3) or (len(p_H.shape) == 3) or (len(p_R.shape) == 3):
                 raise ValueError(
                     "Parameter index can not be None for time varying matrices (third dimension is present)"
                 )
@@ -839,13 +857,11 @@ class DescreteStateSpace(object):
                 index = np.zeros((1, Y.shape[0]))
         else:
             if len(index.shape) == 1:
-                index.shape = (1, index.shape[0])
+                index = index.reshape((1, index.shape[0]))
                 old_index_shape = (index.shape[0],)
 
             if index.shape[1] != Y.shape[0]:
-                raise ValueError(
-                    "Number of measurements must be equal the number of A_{k}, Q_{k}, H_{k}, R_{k}"
-                )
+                raise ValueError("Number of measurements must be equal the number of A_{k}, Q_{k}, H_{k}, R_{k}")
 
         if index.shape[0] == 1:
             A_time_var_index = 0
@@ -863,18 +879,10 @@ class DescreteStateSpace(object):
         state_dim = p_A.shape[0]
         # Check and make right shape for model matrices. On exit they all are 3 dimensional. Last dimension
         # correspond to change in time.
-        (p_A, old_A_shape) = cls._check_SS_matrix(
-            p_A, state_dim, measurement_dim, which="A"
-        )
-        (p_Q, old_Q_shape) = cls._check_SS_matrix(
-            p_Q, state_dim, measurement_dim, which="Q"
-        )
-        (p_H, old_H_shape) = cls._check_SS_matrix(
-            p_H, state_dim, measurement_dim, which="H"
-        )
-        (p_R, old_R_shape) = cls._check_SS_matrix(
-            p_R, state_dim, measurement_dim, which="R"
-        )
+        (p_A, old_A_shape) = cls._check_SS_matrix(p_A, state_dim, measurement_dim, which="A")
+        (p_Q, old_Q_shape) = cls._check_SS_matrix(p_Q, state_dim, measurement_dim, which="Q")
+        (p_H, old_H_shape) = cls._check_SS_matrix(p_H, state_dim, measurement_dim, which="H")
+        (p_R, old_R_shape) = cls._check_SS_matrix(p_R, state_dim, measurement_dim, which="R")
 
         # m_init
         if m_init is None:
@@ -885,7 +893,7 @@ class DescreteStateSpace(object):
         # P_init
         if P_init is None:
             P_init = np.eye(state_dim)
-        elif not isinstance(P_init, collections.Iterable):  # scalar
+        elif not isinstance(P_init, Iterable):  # scalar
             P_init = P_init * np.eye(state_dim)
 
         if p_kalman_filter_type not in ("regular", "svd"):
@@ -896,28 +904,16 @@ class DescreteStateSpace(object):
         # k - number of Kalman filter iteration
         # m - vector for calculating matrices. Required for EKF. Not used here.
 
-        c_p_A = (
-            p_A.copy()
-        )  # create a copy because this object is passed to the smoother
-        c_p_Q = (
-            p_Q.copy()
-        )  # create a copy because this object is passed to the smoother
-        c_index = (
-            index.copy()
-        )  # create a copy because this object is passed to the smoother
+        c_p_A = p_A.copy()  # create a copy because this object is passed to the smoother
+        c_p_Q = p_Q.copy()  # create a copy because this object is passed to the smoother
+        c_index = index.copy()  # create a copy because this object is passed to the smoother
 
         if calc_grad_log_likelihood:
             if model_matrices_chage_with_time:
-                raise ValueError(
-                    "When computing likelihood gradient A and Q can not change over time."
-                )
+                raise ValueError("When computing likelihood gradient A and Q can not change over time.")
 
-            dA = cls._check_grad_state_matrices(
-                grad_calc_params.get("dA"), state_dim, grad_params_no, which="dA"
-            )
-            dQ = cls._check_grad_state_matrices(
-                grad_calc_params.get("dQ"), state_dim, grad_params_no, which="dQ"
-            )
+            dA = cls._check_grad_state_matrices(grad_calc_params.get("dA"), state_dim, grad_params_no, which="dA")
+            dQ = cls._check_grad_state_matrices(grad_calc_params.get("dQ"), state_dim, grad_params_no, which="dQ")
             dH = cls._check_grad_measurement_matrices(
                 grad_calc_params.get("dH"),
                 state_dim,
@@ -979,22 +975,22 @@ class DescreteStateSpace(object):
 
         # restore shapes so that input parameters are unchenged
         if old_index_shape is not None:
-            index.shape = old_index_shape
+            index = index.reshape(old_index_shape)
 
         if old_Y_shape is not None:
-            Y.shape = old_Y_shape
+            Y = Y.reshape(old_Y_shape)
 
         if old_A_shape is not None:
-            p_A.shape = old_A_shape
+            p_A = p_A.reshape(old_A_shape)
 
         if old_Q_shape is not None:
-            p_Q.shape = old_Q_shape
+            p_Q = p_Q.reshape(old_Q_shape)
 
         if old_H_shape is not None:
-            p_H.shape = old_H_shape
+            p_H = p_H.reshape(old_H_shape)
 
         if old_R_shape is not None:
-            p_R.shape = old_R_shape
+            p_R = p_R.reshape(old_R_shape)
         # Return values
 
         return (M, P, log_likelihood, grad_log_likelihood, dynamic_callables)
@@ -1083,7 +1079,8 @@ class DescreteStateSpace(object):
         """
 
         # Y
-        Y.shape, old_Y_shape = cls._reshape_input_data(Y.shape)
+        Y_shape, old_Y_shape = cls._reshape_input_data(Y.shape)
+        Y = Y.reshape(Y_shape)
 
         # m_init
         if m_init is None:
@@ -1094,7 +1091,7 @@ class DescreteStateSpace(object):
         # P_init
         if P_init is None:
             P_init = np.eye(p_state_dim)
-        elif not isinstance(P_init, collections.Iterable):  # scalar
+        elif not isinstance(P_init, Iterable):  # scalar
             P_init = P_init * np.eye(p_state_dim)
 
         if p_a is None:
@@ -1121,7 +1118,7 @@ class DescreteStateSpace(object):
                 raise ValueError("p_f_Q function returns matrix of wrong size")
 
         if p_h is None:
-            lambda k, m, H: np.dot(H, m)
+            p_h = lambda k, m, H: np.dot(H, m)
 
         old_H_shape = None
         if not isinstance(p_f_H, types.FunctionType):  # not a function but array
@@ -1150,12 +1147,10 @@ class DescreteStateSpace(object):
 
         class measurement_callables_class(R_handling_Class):
             def __init__(self, R, index, R_time_var_index, unique_R_number):
-                super(measurement_callables_class, self).__init__(
-                    R, index, R_time_var_index, unique_R_number
-                )
+                super(measurement_callables_class, self).__init__(R, index, R_time_var_index, unique_R_number)
 
-            Hk = AddMethodToClass(f_H)
-            f_h = AddMethodToClass(f_hl)
+            Hk = AddMethodToClass(p_f_H)
+            f_h = AddMethodToClass(p_h)
 
         (M, P, log_likelihood, grad_log_likelihood) = cls._kalman_algorithm_raw(
             p_state_dim,
@@ -1174,19 +1169,19 @@ class DescreteStateSpace(object):
         )
 
         if old_Y_shape is not None:
-            Y.shape = old_Y_shape
+            Y = Y.reshape(old_Y_shape)
 
         if old_A_shape is not None:
-            p_A.shape = old_A_shape
+            p_A = p_A.reshape(old_A_shape)
 
         if old_Q_shape is not None:
-            p_Q.shape = old_Q_shape
+            p_Q = p_Q.reshape(old_Q_shape)
 
         if old_H_shape is not None:
-            p_H.shape = old_H_shape
+            p_H = p_H.reshape(old_H_shape)
 
         if old_R_shape is not None:
-            p_R.shape = old_R_shape
+            p_R = p_R.reshape(old_R_shape)
 
         return (M, P)
 
@@ -1326,9 +1321,7 @@ class DescreteStateSpace(object):
         M[0, :, :] = m_init  # Initialize mean values
         # Variance estimations. Initial values will be included
         P = np.empty(((steps_no + 1), state_dim, state_dim))
-        P_init = 0.5 * (
-            P_init + P_init.T
-        )  # symmetrize initial covariance. In some ustable cases this is uiseful
+        P_init = 0.5 * (P_init + P_init.T)  # symmetrize initial covariance. In some ustable cases this is uiseful
         P[0, :, :] = P_init  # Initialize initial covariance matrix
 
         if p_kalman_filter_type == "svd":
@@ -1450,9 +1443,7 @@ class DescreteStateSpace(object):
                     if calc_log_likelihood:
                         log_likelihood_update = np.zeros((time_series_no,))
                     if calc_grad_log_likelihood:
-                        d_log_likelihood_update = np.zeros(
-                            (grad_params_no, time_series_no)
-                        )
+                        d_log_likelihood_update = np.zeros((grad_params_no, time_series_no))
 
             if calc_log_likelihood:
                 log_likelihood += log_likelihood_update
@@ -1527,9 +1518,7 @@ class DescreteStateSpace(object):
         """
 
         # index correspond to values from previous iteration.
-        A = p_dyn_model_callable.Ak(
-            k, p_m, p_P
-        )  # state transition matrix (or Jacobian)
+        A = p_dyn_model_callable.Ak(k, p_m, p_P)  # state transition matrix (or Jacobian)
         Q = p_dyn_model_callable.Qk(k)  # state noise matrix
 
         # Prediction step ->
@@ -1538,12 +1527,8 @@ class DescreteStateSpace(object):
         # Prediction step <-
 
         if calc_grad_log_likelihood:
-            dA_all_params = p_dyn_model_callable.dAk(
-                k
-            )  # derivatives of A wrt parameters
-            dQ_all_params = p_dyn_model_callable.dQk(
-                k
-            )  # derivatives of Q wrt parameters
+            dA_all_params = p_dyn_model_callable.dAk(k)  # derivatives of A wrt parameters
+            dQ_all_params = p_dyn_model_callable.dQk(k)  # derivatives of Q wrt parameters
 
             param_number = p_dP.shape[2]
 
@@ -1564,9 +1549,7 @@ class DescreteStateSpace(object):
                 dP_pred[:, :, j] += dP_pred[:, :, j].T
                 dP_pred[:, :, j] += np.dot(A, np.dot(dP, A.T)) + dQ
 
-                dP_pred[:, :, j] = 0.5 * (
-                    dP_pred[:, :, j] + dP_pred[:, :, j].T
-                )  # symmetrize
+                dP_pred[:, :, j] = 0.5 * (dP_pred[:, :, j] + dP_pred[:, :, j].T)  # symmetrize
         else:
             dm_pred = None
             dP_pred = None
@@ -1628,10 +1611,8 @@ class DescreteStateSpace(object):
         # p_prev_cov_tst = np.dot(p_V, (p_S * p_V).T) # reconstructed covariance from the previous step
 
         # index correspond to values from previous iteration.
-        A = p_dyn_model_callable.Ak(
-            k, p_m, Prev_cov
-        )  # state transition matrix (or Jacobian)
-        Q = p_dyn_model_callable.Qk(
+        A = p_dyn_model_callable.Ak(k, p_m, Prev_cov)  # state transition matrix (or Jacobian)
+        p_dyn_model_callable.Qk(
             k
         )  # state noise matrx. This is necessary for the square root calculation (next step)
         Q_sr = p_dyn_model_callable.Q_srk(k)
@@ -1659,12 +1640,8 @@ class DescreteStateSpace(object):
 
         # derivatives
         if calc_grad_log_likelihood:
-            dA_all_params = p_dyn_model_callable.dAk(
-                k
-            )  # derivatives of A wrt parameters
-            dQ_all_params = p_dyn_model_callable.dQk(
-                k
-            )  # derivatives of Q wrt parameters
+            dA_all_params = p_dyn_model_callable.dAk(k)  # derivatives of A wrt parameters
+            dQ_all_params = p_dyn_model_callable.dQk(k)  # derivatives of Q wrt parameters
 
             param_number = p_dP.shape[2]
 
@@ -1685,9 +1662,7 @@ class DescreteStateSpace(object):
                 dP_pred[:, :, j] += dP_pred[:, :, j].T
                 dP_pred[:, :, j] += np.dot(A, np.dot(p_dP[:, :, j], A.T)) + dQ
 
-                dP_pred[:, :, j] = 0.5 * (
-                    dP_pred[:, :, j] + dP_pred[:, :, j].T
-                )  # symmetrize
+                dP_pred[:, :, j] = 0.5 * (dP_pred[:, :, j] + dP_pred[:, :, j].T)  # symmetrize
         else:
             dm_pred = None
             dP_pred = None
@@ -1782,13 +1757,9 @@ class DescreteStateSpace(object):
 
             K = P_pred.dot(H.T) / S
             if calc_log_likelihood:
-                log_likelihood_update = -0.5 * (
-                    np.log(2 * np.pi) + np.log(S) + v * v / S
-                )
+                log_likelihood_update = -0.5 * (np.log(2 * np.pi) + np.log(S) + v * v / S)
                 # log_likelihood_update = log_likelihood_update[0,0] # to make int
-                if np.any(
-                    np.isnan(log_likelihood_update)
-                ):  # some member in P_pred is None.
+                if np.any(np.isnan(log_likelihood_update)):  # some member in P_pred is None.
                     raise ValueError("Nan values in likelihood update!")
             LL = None
             islower = None
@@ -1842,11 +1813,7 @@ class DescreteStateSpace(object):
                     tmp2 = dH.T / S
                     tmp3 = dS.T / S
 
-                dK = (
-                    np.dot(dP_pred, tmp1)
-                    + np.dot(P_pred, tmp2)
-                    - np.dot(P_pred, np.dot(tmp1, tmp3))
-                )
+                dK = np.dot(dP_pred, tmp1) + np.dot(P_pred, tmp2) - np.dot(P_pred, np.dot(tmp1, tmp3))
 
                 # terms required for the next step, save this for each parameter
                 dm_upd[:, :, param] = dm_pred + np.dot(dK, v) + np.dot(K, dv)
@@ -1855,9 +1822,7 @@ class DescreteStateSpace(object):
                 dP_upd[:, :, param] += dP_upd[:, :, param].T
                 dP_upd[:, :, param] += dP_pred - np.dot(K, np.dot(dS, K.T))
 
-                dP_upd[:, :, param] = 0.5 * (
-                    dP_upd[:, :, param] + dP_upd[:, :, param].T
-                )  # symmetrize
+                dP_upd[:, :, param] = 0.5 * (dP_upd[:, :, param] + dP_upd[:, :, param].T)  # symmetrize
                 # computing the likelihood change for each parameter:
                 if LL is not None:  # the state vector is not 1D
                     # tmp4 = linalg.cho_solve((LL,islower), dv)
@@ -1986,9 +1951,7 @@ class DescreteStateSpace(object):
 
         H = p_meas_model_callable.Hk(k, m_pred, P_pred)
         R = p_meas_model_callable.Rk(k)
-        R_isr = p_meas_model_callable.R_isrk(
-            k
-        )  # square root of the inverse of R matrix
+        R_isr = p_meas_model_callable.R_isrk(k)  # square root of the inverse of R matrix
 
         time_series_no = p_m.shape[1]  # number of time serieses
 
@@ -2000,9 +1963,7 @@ class DescreteStateSpace(object):
         # if not np.any(np.isnan(measurement)): # TODO: if some dimensions are missing, do properly computations for other.
         v = measurement - p_meas_model_callable.f_h(k, m_pred, H)
 
-        svd_2_matr = np.vstack(
-            (np.dot(R_isr.T, np.dot(H, V_pred)), np.diag(1.0 / np.sqrt(S_pred)))
-        )
+        svd_2_matr = np.vstack((np.dot(R_isr.T, np.dot(H, V_pred)), np.diag(1.0 / np.sqrt(S_pred))))
 
         (U, S, Vh) = sp.linalg.svd(
             svd_2_matr,
@@ -2028,13 +1989,9 @@ class DescreteStateSpace(object):
 
             K = P_pred.dot(H.T) / S
             if calc_log_likelihood:
-                log_likelihood_update = -0.5 * (
-                    np.log(2 * np.pi) + np.log(S) + v * v / S
-                )
+                log_likelihood_update = -0.5 * (np.log(2 * np.pi) + np.log(S) + v * v / S)
                 # log_likelihood_update = log_likelihood_update[0,0] # to make int
-                if np.any(
-                    np.isnan(log_likelihood_update)
-                ):  # some member in P_pred is None.
+                if np.any(np.isnan(log_likelihood_update)):  # some member in P_pred is None.
                     raise ValueError("Nan values in likelihood update!")
             LL = None
             islower = None
@@ -2094,11 +2051,7 @@ class DescreteStateSpace(object):
                     tmp2 = dH.T / S
                     tmp3 = dS.T / S
 
-                dK = (
-                    np.dot(dP_pred, tmp1)
-                    + np.dot(P_pred, tmp2)
-                    - np.dot(P_pred, np.dot(tmp1, tmp3))
-                )
+                dK = np.dot(dP_pred, tmp1) + np.dot(P_pred, tmp2) - np.dot(P_pred, np.dot(tmp1, tmp3))
 
                 # terms required for the next step, save this for each parameter
                 dm_upd[:, :, param] = dm_pred + np.dot(dK, v) + np.dot(K, dv)
@@ -2107,9 +2060,7 @@ class DescreteStateSpace(object):
                 dP_upd[:, :, param] += dP_upd[:, :, param].T
                 dP_upd[:, :, param] += dP_pred - np.dot(K, np.dot(dS, K.T))
 
-                dP_upd[:, :, param] = 0.5 * (
-                    dP_upd[:, :, param] + dP_upd[:, :, param].T
-                )  # symmetrize
+                dP_upd[:, :, param] = 0.5 * (dP_upd[:, :, param] + dP_upd[:, :, param].T)  # symmetrize
                 # computing the likelihood change for each parameter:
                 if LL is not None:  # the state vector is not 1D
                     tmp5 = linalg.cho_solve((LL, islower), v)
@@ -2250,9 +2201,7 @@ class DescreteStateSpace(object):
             Smoothed estimates of the state covariances
         """
 
-        no_steps = (
-            filter_covars.shape[0] - 1
-        )  # number of steps (minus initial covariance)
+        no_steps = filter_covars.shape[0] - 1  # number of steps (minus initial covariance)
 
         M = np.empty(filter_means.shape)  # smoothed means
         P = np.empty(filter_covars.shape)  # smoothed covars
@@ -2270,11 +2219,11 @@ class DescreteStateSpace(object):
             )
             p_m = filter_means[k, :]
             if len(p_m.shape) < 2:
-                p_m.shape = (p_m.shape[0], 1)
+                p_m = p_m.reshape((p_m.shape[0], 1))
 
             p_m_prev_step = M[k + 1, :]
             if len(p_m_prev_step.shape) < 2:
-                p_m_prev_step.shape = (p_m_prev_step.shape[0], 1)
+                p_m_prev_step = p_m_prev_step.reshape((p_m_prev_step.shape[0], 1))
 
             m_upd, P_upd, G_tmp = cls._rts_smoother_update_step(
                 k,
@@ -2383,20 +2332,15 @@ class DescreteStateSpace(object):
         d_log_likelihood_update = np.zeros((param_number, 1))
         for j in range(param_number):
             if compute_P_init_terms:
-                d_log_likelihood_update[j, :] -= 0.5 * np.sum(
-                    P_init_inv * dP_init[:, :, j].T
-                )  # p #m
+                d_log_likelihood_update[j, :] -= 0.5 * np.sum(P_init_inv * dP_init[:, :, j].T)  # p #m
 
                 M0_smoothed = M[0]
-                M0_smoothed.shape = (M0_smoothed.shape[0], 1)
+                M0_smoothed = M0_smoothed.reshape((M0_smoothed.shape[0], 1))
                 tmp1 = np.dot(
                     dP_init[:, :, j],
                     np.dot(
                         P_init_inv,
-                        (
-                            P[0, :, :]
-                            + sp.outer((M0_smoothed - m_init), (M0_smoothed - m_init))
-                        ),
+                        (P[0, :, :] + sp.outer((M0_smoothed - m_init), (M0_smoothed - m_init))),
                     ),
                 )  # p #m
                 d_log_likelihood_update[j, :] += 0.5 * np.sum(P_init_inv * tmp1.T)
@@ -2406,46 +2350,34 @@ class DescreteStateSpace(object):
                 d_log_likelihood_update[j, :] += 0.5 * np.sum(P_init_inv * tmp2.T)
 
             if compute_Q_terms:
-                d_log_likelihood_update[j, :] -= (
-                    sample_no / 2.0 * np.sum(Q_inv * dQ[:, :, j].T)
-                )  # m
+                d_log_likelihood_update[j, :] -= sample_no / 2.0 * np.sum(Q_inv * dQ[:, :, j].T)  # m
 
                 tmp1 = np.dot(C, A.T)
                 tmp1 += tmp1.T
                 tmp1 = Sigma - tmp1 + np.dot(A, np.dot(Phi, A.T))  # m
                 tmp1 = np.dot(dQ[:, :, j], np.dot(Q_inv, tmp1))
-                d_log_likelihood_update[j, :] += (
-                    sample_no / 2.0 * np.sum(Q_inv * tmp1.T)
-                )
+                d_log_likelihood_update[j, :] += sample_no / 2.0 * np.sum(Q_inv * tmp1.T)
 
                 tmp2 = np.dot(dA[:, :, j], C.T)
                 tmp2 += tmp2.T
                 tmp3 = np.dot(dA[:, :, j], np.dot(Phi, A.T))
                 tmp3 += tmp3.T
-                d_log_likelihood_update[j, :] -= (
-                    sample_no / 2.0 * np.sum(Q_inv.T * (tmp3 - tmp2))
-                )
+                d_log_likelihood_update[j, :] -= sample_no / 2.0 * np.sum(Q_inv.T * (tmp3 - tmp2))
 
             if compute_R_terms:
-                d_log_likelihood_update[j, :] -= (
-                    sample_no / 2.0 * np.sum(R_inv * dR[:, :, j].T)
-                )
+                d_log_likelihood_update[j, :] -= sample_no / 2.0 * np.sum(R_inv * dR[:, :, j].T)
 
                 tmp1 = np.dot(B, H.T)
                 tmp1 += tmp1.T
                 tmp1 = D - tmp1 + np.dot(H, np.dot(Sigma, H.T))
                 tmp1 = np.dot(dR[:, :, j], np.dot(R_inv, tmp1))
-                d_log_likelihood_update[j, :] += (
-                    sample_no / 2.0 * np.sum(R_inv * tmp1.T)
-                )
+                d_log_likelihood_update[j, :] += sample_no / 2.0 * np.sum(R_inv * tmp1.T)
 
                 tmp2 = np.dot(dH[:, :, j], B.T)
                 tmp2 += tmp2.T
                 tmp3 = np.dot(dH[:, :, j], np.dot(Sigma, H.T))
                 tmp3 += tmp3.T
-                d_log_likelihood_update[j, :] -= (
-                    sample_no / 2.0 * np.sum(R_inv.T * (tmp3 - tmp2))
-                )
+                d_log_likelihood_update[j, :] -= sample_no / 2.0 * np.sum(R_inv.T * (tmp3 - tmp2))
 
         return d_log_likelihood_update
 
@@ -2475,7 +2407,7 @@ class DescreteStateSpace(object):
         if len(p_M.shape) < 3:  # new shape is 3 dimensional
             old_M_shape = p_M.shape  # save shape to restore it on exit
             if len(p_M.shape) == 2:  # matrix
-                p_M.shape = (p_M.shape[0], p_M.shape[1], 1)
+                p_M = p_M.reshape((p_M.shape[0], p_M.shape[1], 1))
             elif len(p_M.shape) == 1:  # scalar but in array already
                 if p_M.shape[0] != 1:
                     raise ValueError(
@@ -2483,25 +2415,20 @@ class DescreteStateSpace(object):
                         which,
                     )
                 else:
-                    p_M.shape = (1, 1, 1)
+                    p_M = p_M.reshape((1, 1, 1))
 
         if (which == "A") or (which == "Q"):
             if (p_M.shape[0] != state_dim) or (p_M.shape[1] != state_dim):
-                raise ValueError(
-                    "%s must be a square matrix of size (%i,%i)"
-                    % (which, state_dim, state_dim)
-                )
+                raise ValueError("%s must be a square matrix of size (%i,%i)" % (which, state_dim, state_dim))
         if which == "H":
             if (p_M.shape[0] != measurement_dim) or (p_M.shape[1] != state_dim):
                 raise ValueError(
-                    "H must be of shape (measurement_dim, state_dim) (%i,%i)"
-                    % (measurement_dim, state_dim)
+                    "H must be of shape (measurement_dim, state_dim) (%i,%i)" % (measurement_dim, state_dim)
                 )
         if which == "R":
             if (p_M.shape[0] != measurement_dim) or (p_M.shape[1] != measurement_dim):
                 raise ValueError(
-                    "R must be of shape (measurement_dim, measurement_dim) (%i,%i)"
-                    % (measurement_dim, measurement_dim)
+                    "R must be of shape (measurement_dim, measurement_dim) (%i,%i)" % (measurement_dim, measurement_dim)
                 )
 
         return (p_M, old_M_shape)
@@ -2540,15 +2467,13 @@ class DescreteStateSpace(object):
         elif isinstance(dM, np.ndarray):
             if state_dim == 1:
                 if len(dM.shape) < 3:
-                    dM.shape = (1, 1, 1)
+                    dM = dM.reshape((1, 1, 1))
             else:
                 if len(dM.shape) < 3:
-                    dM.shape = (state_dim, state_dim, 1)
+                    dM = dM.reshape((state_dim, state_dim, 1))
         elif isinstance(dM, int):
             if state_dim > 1:
-                raise ValueError(
-                    "When computing likelihood gradient wrong %s dimension." % which
-                )
+                raise ValueError("When computing likelihood gradient wrong %s dimension." % which)
             else:
                 dM = np.ones((1, 1, 1)) * dM
 
@@ -2560,9 +2485,7 @@ class DescreteStateSpace(object):
         return dM
 
     @staticmethod
-    def _check_grad_measurement_matrices(
-        dM, state_dim, grad_params_no, measurement_dim, which="dH"
-    ):
+    def _check_grad_measurement_matrices(dM, state_dim, grad_params_no, measurement_dim, which="dH"):
         """
         Function checks (mostly check dimensions) matrices for marginal likelihood
         gradient parameters calculation. It check dH, dR matrices.
@@ -2603,18 +2526,16 @@ class DescreteStateSpace(object):
         elif isinstance(dM, np.ndarray):
             if state_dim == 1:
                 if len(dM.shape) < 3:
-                    dM.shape = (1, 1, 1)
+                    dM = dM.reshape((1, 1, 1))
             else:
                 if len(dM.shape) < 3:
                     if which == "dH":
-                        dM.shape = (measurement_dim, state_dim, 1)
+                        dM = dM.reshape((measurement_dim, state_dim, 1))
                     elif which == "dR":
-                        dM.shape = (measurement_dim, measurement_dim, 1)
+                        dM = dM.reshape((measurement_dim, measurement_dim, 1))
         elif isinstance(dM, int):
             if state_dim > 1:
-                raise ValueError(
-                    "When computing likelihood gradient wrong dH dimension."
-                )
+                raise ValueError("When computing likelihood gradient wrong dH dimension.")
             else:
                 dM = np.ones((1, 1, 1)) * dM
 
@@ -2992,11 +2913,7 @@ class ContDescrStateSpace(DescreteStateSpace):
                 + self.Qs.nbytes
                 + (self.dAs.nbytes if (self.dAs is not None) else 0)
                 + (self.dQs.nbytes if (self.dQs is not None) else 0)
-                + (
-                    self.reconstruct_indices.nbytes
-                    if (self.reconstruct_indices is not None)
-                    else 0
-                )
+                + (self.reconstruct_indices.nbytes if (self.reconstruct_indices is not None) else 0)
             )
 
             self.Q_svd_dict = {}
@@ -3292,24 +3209,22 @@ class ContDescrStateSpace(DescreteStateSpace):
         p_H = np.atleast_1d(p_H)
         p_R = np.atleast_1d(p_R)
 
-        X.shape, old_X_shape = cls._reshape_input_data(
-            X.shape, 2
-        )  # represent as column
+        X_shape, old_X_shape = cls._reshape_input_data(X.shape, 2)
+        X = X.reshape(X_shape)  # represent as column
         if X.shape[1] != 1:
             raise ValueError("Only one dimensional X data is supported.")
 
-        Y.shape, old_Y_shape = cls._reshape_input_data(Y.shape)  # represent as column
+        Y_shape, old_Y_shape = cls._reshape_input_data(Y.shape)
+        Y = Y.reshape(Y_shape)  # represent as column
 
         state_dim = F.shape[0]
         measurement_dim = Y.shape[1]
         time_series_no = Y.shape[2]  # multiple time series mode
 
-        if ((len(p_H.shape) == 3) and (len(p_H.shape[2]) != 1)) or (
-            (len(p_R.shape) == 3) and (len(p_R.shape[2]) != 1)
-        ):
-            model_matrices_chage_with_time = True
+        if ((len(p_H.shape) == 3) and (len(p_H.shape[2]) != 1)) or ((len(p_R.shape) == 3) and (len(p_R.shape[2]) != 1)):
+            pass
         else:
-            model_matrices_chage_with_time = False
+            pass
 
         # Check index
         old_index_shape = None
@@ -3322,13 +3237,11 @@ class ContDescrStateSpace(DescreteStateSpace):
                 index = np.zeros((1, Y.shape[0]))
         else:
             if len(index.shape) == 1:
-                index.shape = (1, index.shape[0])
+                index = index.reshape((1, index.shape[0]))
                 old_index_shape = (index.shape[0],)
 
             if index.shape[1] != Y.shape[0]:
-                raise ValueError(
-                    "Number of measurements must be equal the number of H_{k}, R_{k}"
-                )
+                raise ValueError("Number of measurements must be equal the number of H_{k}, R_{k}")
 
         if index.shape[0] == 1:
             H_time_var_index = 0
@@ -3339,12 +3252,8 @@ class ContDescrStateSpace(DescreteStateSpace):
         else:
             raise ValueError("First Dimension of index must be either 1 or 2.")
 
-        (p_H, old_H_shape) = cls._check_SS_matrix(
-            p_H, state_dim, measurement_dim, which="H"
-        )
-        (p_R, old_R_shape) = cls._check_SS_matrix(
-            p_R, state_dim, measurement_dim, which="R"
-        )
+        (p_H, old_H_shape) = cls._check_SS_matrix(p_H, state_dim, measurement_dim, which="H")
+        (p_R, old_R_shape) = cls._check_SS_matrix(p_R, state_dim, measurement_dim, which="R")
 
         if m_init is None:
             m_init = np.zeros((state_dim, time_series_no))
@@ -3367,12 +3276,8 @@ class ContDescrStateSpace(DescreteStateSpace):
         # o_R = R_handling( p_R, index, R_time_var_index, 20)
 
         if calc_grad_log_likelihood:
-            dF = cls._check_grad_state_matrices(
-                grad_calc_params.get("dF"), state_dim, grad_params_no, which="dA"
-            )
-            dQc = cls._check_grad_state_matrices(
-                grad_calc_params.get("dQc"), state_dim, grad_params_no, which="dQ"
-            )
+            dF = cls._check_grad_state_matrices(grad_calc_params.get("dF"), state_dim, grad_params_no, which="dA")
+            dQc = cls._check_grad_state_matrices(grad_calc_params.get("dQc"), state_dim, grad_params_no, which="dQ")
             dP_inf = cls._check_grad_state_matrices(
                 grad_calc_params.get("dP_inf"), state_dim, grad_params_no, which="dA"
             )
@@ -3392,20 +3297,14 @@ class ContDescrStateSpace(DescreteStateSpace):
                 which="dR",
             )
 
-            dm_init = grad_calc_params.get(
-                "dm_init"
-            )  # Initial values for the Kalman Filter
+            dm_init = grad_calc_params.get("dm_init")  # Initial values for the Kalman Filter
             if dm_init is None:
                 # multiple time series mode. Keep grad_params always as a last dimension
                 dm_init = np.zeros((state_dim, time_series_no, grad_params_no))
 
-            dP_init = grad_calc_params.get(
-                "dP_init"
-            )  # Initial values for the Kalman Filter
+            dP_init = grad_calc_params.get("dP_init")  # Initial values for the Kalman Filter
             if dP_init is None:
-                dP_init = dP_inf(
-                    0
-                ).copy()  # get the dP_init matrix, because now it is a function
+                dP_init = dP_inf(0).copy()  # get the dP_init matrix, because now it is a function
 
         else:
             dP_inf = None
@@ -3460,19 +3359,19 @@ class ContDescrStateSpace(DescreteStateSpace):
         )
 
         if old_index_shape is not None:
-            index.shape = old_index_shape
+            index = index.reshape(old_index_shape)
 
         if old_X_shape is not None:
-            X.shape = old_X_shape
+            X = X.reshape(old_X_shape)
 
         if old_Y_shape is not None:
-            Y.shape = old_Y_shape
+            Y = Y.reshape(old_Y_shape)
 
         if old_H_shape is not None:
-            p_H.shape = old_H_shape
+            p_H = p_H.reshape(old_H_shape)
 
         if old_R_shape is not None:
-            p_R.shape = old_R_shape
+            p_R = p_R.reshape(old_R_shape)
 
         return (M, P, log_likelihood, grad_log_likelihood, AQcomp)
 
@@ -3588,9 +3487,7 @@ class ContDescrStateSpace(DescreteStateSpace):
         M[0, :, :] = m_init  # Initialize mean values
         # Variance estimations. Initial values will be included
         P = np.empty(((steps_no + 1), state_dim, state_dim))
-        P_init = 0.5 * (
-            P_init + P_init.T
-        )  # symmetrize initial covariance. In some ustable cases this is uiseful
+        P_init = 0.5 * (P_init + P_init.T)  # symmetrize initial covariance. In some ustable cases this is uiseful
         P[0, :, :] = P_init  # Initialize initial covariance matrix
 
         # import pdb;pdb.set_trace()
@@ -3798,9 +3695,7 @@ class ContDescrStateSpace(DescreteStateSpace):
                 dQc=None,
             )
 
-        no_steps = (
-            filter_covars.shape[0] - 1
-        )  # number of steps (minus initial covariance)
+        no_steps = filter_covars.shape[0] - 1  # number of steps (minus initial covariance)
 
         M = np.empty(filter_means.shape)  # smoothed means
         P = np.empty(filter_covars.shape)  # smoothed covars
@@ -3886,9 +3781,7 @@ class ContDescrStateSpace(DescreteStateSpace):
         """
 
         unique_round_decimals = 10
-        threshold_number_of_unique_time_steps = (
-            20  # above which matrices are separately each time
-        )
+        threshold_number_of_unique_time_steps = 20  # above which matrices are separately each time
         dt = np.empty((X.shape[0],))
         dt[1:] = np.diff(X[:, 0], axis=0)
         if dt0 is None:
@@ -3938,9 +3831,7 @@ class ContDescrStateSpace(DescreteStateSpace):
                         dQc=dQc,
                     )
 
-                    super(AQcompute_batch, self).__init__(
-                        As, Qs, reconstruct_indices, dAs, dQs
-                    )
+                    super(AQcompute_batch, self).__init__(As, Qs, reconstruct_indices, dAs, dQs)
 
         else:
             AQcompute_batch = cls.AQcompute_batch_Python
@@ -3960,10 +3851,7 @@ class ContDescrStateSpace(DescreteStateSpace):
             )
             if print_verbose:
                 print("CDO:  Continue-to-discrete INSTANTANEOUS object is created.")
-                print(
-                    "CDO:  Number of different time steps: %i"
-                    % (number_unique_indices,)
-                )
+                print("CDO:  Number of different time steps: %i" % (number_unique_indices,))
 
         else:
             AQcomp = AQcompute_batch(
@@ -3980,10 +3868,7 @@ class ContDescrStateSpace(DescreteStateSpace):
             )
             if print_verbose:
                 print("CDO:  Continue-to-discrete BATCH object is created.")
-                print(
-                    "CDO:  Number of different time steps: %i"
-                    % (number_unique_indices,)
-                )
+                print("CDO:  Number of different time steps: %i" % (number_unique_indices,))
                 print("CDO:  Total size if its data: %i" % (AQcomp.total_size_of_data,))
 
         return AQcomp
@@ -4004,10 +3889,10 @@ class ContDescrStateSpace(DescreteStateSpace):
         """
         Linear Time-Invariant Stochastic Differential Equation (LTI SDE):
 
-            dx(t) = F x(t) dt + L d \beta  ,where
+            dx(t) = F x(t) dt + L d \\beta  ,where
 
                 x(t): (vector) stochastic process
-                \beta: (vector) Brownian motion process
+                \\beta: (vector) Brownian motion process
                 F, L: (time invariant) matrices of corresponding dimensions
                 Qc: covariance of noise.
 
@@ -4024,7 +3909,7 @@ class ContDescrStateSpace(DescreteStateSpace):
         F,L: LTI SDE matrices of corresponding dimensions
 
         Qc: matrix (n,n)
-            Covarince between different dimensions of noise \beta.
+            Covarince between different dimensions of noise \\beta.
             n is the dimensionality of the noise.
 
         dt: double or iterable
@@ -4078,7 +3963,7 @@ class ContDescrStateSpace(DescreteStateSpace):
         # Dimensionality
         n = F.shape[0]
 
-        if not isinstance(dt, collections.Iterable):  # not iterable, scalar
+        if not isinstance(dt, Iterable):  # not iterable, scalar
             # import pdb; pdb.set_trace()
             # The dynamical model
             A = matrix_exponent(F * dt)
@@ -4091,7 +3976,7 @@ class ContDescrStateSpace(DescreteStateSpace):
             AB = matrix_exponent(Phi * dt)
             AB = np.dot(AB, np.vstack((np.zeros((n, n)), np.eye(n))))
 
-            Q_noise_1 = linalg.solve(AB[n:, :].T, AB[:n, :].T)
+            linalg.solve(AB[n:, :].T, AB[:n, :].T)
             Q_noise_2 = P_inf - A.dot(P_inf).dot(A.T)
             # The covariance matrix Q by matrix fraction decomposition <-
 
@@ -4126,9 +4011,7 @@ class ContDescrStateSpace(DescreteStateSpace):
                     # The derivatives of A and Q
                     dA[:, :, p] = AA[n:, :n, p]
                     tmp = dA[:, :, p].dot(P_inf).dot(A.T)
-                    dQ[:, :, p] = (
-                        dP_inf[:, :, p] - tmp - A.dot(dP_inf[:, :, p]).dot(A.T) - tmp.T
-                    )
+                    dQ[:, :, p] = dP_inf[:, :, p] - tmp - A.dot(dP_inf[:, :, p]).dot(A.T) - tmp.T
 
                     dQ[:, :, p] = 0.5 * (dQ[:, :, p] + dQ[:, :, p].T)  # Symmetrize
             else:
@@ -4144,9 +4027,7 @@ class ContDescrStateSpace(DescreteStateSpace):
 
         else:  # iterable, array
             # Time discretizations (round to 14 decimals to avoid problems)
-            dt_unique, tmp, reconstruct_index = np.unique(
-                np.round(dt, 8), return_index=True, return_inverse=True
-            )
+            dt_unique, tmp, reconstruct_index = np.unique(np.round(dt, 8), return_index=True, return_inverse=True)
             del tmp
             # Allocate space for A and Q
             A = np.empty((n, n, dt_unique.shape[0]))
@@ -4199,7 +4080,7 @@ def matrix_exponent(M):
         try:
             Mexp = linalg.expm(M)
             method = 1
-        except (Exception,) as e:
+        except (Exception,):
             Mexp = linalg.expm3(M)
             method = 2
         finally:
@@ -4252,9 +4133,7 @@ def balance_matrix(A):
     gebal = sp.linalg.lapack.get_lapack_funcs("gebal", (A,))
     bA, lo, hi, pivscale, info = gebal(A, permute=True, scale=True, overwrite_a=False)
     if info < 0:
-        raise ValueError(
-            "balance_matrix: Illegal value in %d-th argument of internal gebal " % -info
-        )
+        raise ValueError("balance_matrix: Illegal value in %d-th argument of internal gebal " % -info)
 
     # calculating the similarity transforamtion:
     def perm_matr(D, c1, c2):

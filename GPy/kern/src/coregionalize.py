@@ -12,9 +12,7 @@ try:
 
     use_coregionalize_cython = config.getboolean("cython", "working")
 except ImportError:
-    print(
-        "warning in coregionalize: failed to import cython module: falling back to numpy"
-    )
+    print("warning in coregionalize: failed to import cython module: falling back to numpy")
     use_coregionalize_cython = False
 
 
@@ -25,12 +23,12 @@ class Coregionalize(Kern):
     This covariance has the form:
 
     .. math::
-       \mathbf{B} = \mathbf{W}\mathbf{W}^\intercal + \mathrm{diag}(kappa)
+       \\mathbf{B} = \\mathbf{W}\\mathbf{W}^\\intercal + \\mathrm{diag}(kappa)
 
     An intrinsic/linear coregionalization covariance function of the form:
 
     .. math::
-       k_2(x, y)=\mathbf{B} k(x, y)
+       k_2(x, y)=\\mathbf{B} k(x, y)
 
     it is obtained as the tensor product between a covariance function
     k(x, y) and B.
@@ -61,9 +59,7 @@ class Coregionalize(Kern):
         self.output_dim = output_dim
         self.rank = rank
         if self.rank > output_dim:
-            print(
-                "Warning: Unusual choice of rank, it should normally be less than the output_dim."
-            )
+            print("Warning: Unusual choice of rank, it should normally be less than the output_dim.")
         if W is None:
             W = 0.5 * np.random.randn(self.output_dim, self.rank) / np.sqrt(self.rank)
         else:
@@ -95,9 +91,7 @@ class Coregionalize(Kern):
 
     def _K_cython(self, X, X2=None):
         if X2 is None:
-            return coregionalize_cython.K_symmetric(
-                self.B, np.asarray(X, dtype=np.int64)[:, 0]
-            )
+            return coregionalize_cython.K_symmetric(self.B, np.asarray(X, dtype=np.int64)[:, 0])
         return coregionalize_cython.K_asymmetric(
             self.B,
             np.asarray(X, dtype=np.int64)[:, 0],
@@ -138,15 +132,11 @@ class Coregionalize(Kern):
 
     def _gradient_reduce_cython(self, dL_dK, index, index2):
         index, index2 = np.int64(index[:, 0]), np.int64(index2[:, 0])
-        return coregionalize_cython.gradient_reduce(
-            self.B.shape[0], dL_dK, index, index2
-        )
+        return coregionalize_cython.gradient_reduce(self.B.shape[0], dL_dK, index, index2)
 
     def update_gradients_diag(self, dL_dKdiag, X):
         index = np.asarray(X, dtype=int).flatten()
-        dL_dKdiag_small = np.array(
-            [dL_dKdiag[index == i].sum() for i in range(self.output_dim)]
-        )
+        dL_dKdiag_small = np.array([dL_dKdiag[index == i].sum() for i in range(self.output_dim)])
         self.W.gradient = 2.0 * self.W * dL_dKdiag_small[:, None]
         self.kappa.gradient = dL_dKdiag_small
 
@@ -171,11 +161,12 @@ class Coregionalize(Kern):
         input_dict["W"] = self.W.values.tolist()
         input_dict["kappa"] = self.kappa.values.tolist()
         input_dict["output_dim"] = self.output_dim
+        input_dict["rank"] = int(self.rank)
         return input_dict
 
     @staticmethod
     def _build_from_input_dict(kernel_class, input_dict):
-        useGPU = input_dict.pop("useGPU", None)
+        input_dict.pop("useGPU", None)
         # W and kappa must be converted back to numpy arrays
         input_dict["W"] = np.array(input_dict["W"])
         input_dict["kappa"] = np.array(input_dict["kappa"])
